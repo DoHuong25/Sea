@@ -1,0 +1,105 @@
+<section id="all-foods" class="admin-page <%= currentPage === 'all-foods' ? 'active' : '' %> bg-white rounded-2xl shadow-lg p-6">
+    <div class="flex flex-col gap-4 mb-4 border-b pb-4">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-4">
+                <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= filters.status === 'all' ? 'active' : '' %>" data-status-filter="all">Tất cả</button>
+                <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= filters.status === 'pending' ? 'active' : '' %>" data-status-filter="pending">Chờ duyệt</button>
+                <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= filters.status === 'approved' ? 'active' : '' %>" data-status-filter="approved">Đã duyệt</button>
+            </div>
+            <button id="add-new-food-btn" class="w-full sm:w-auto bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap">
+                <i class="fas fa-plus-circle mr-2"></i>Thêm món mới
+            </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:col-span-4 gap-4 items-center">
+            <div class="relative xl:col-span-2">
+                <input type="text" id="food-search-by-name" placeholder="Tìm theo tên món..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500" value="<%= filters.name %>">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <div class="relative xl:col-span-2">
+                 <input type="text" id="food-search-by-location" placeholder="Tìm theo vùng miền, tỉnh thành..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500" value="<%= filters.location %>">
+                <i class="fas fa-map-marker-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+             <select id="food-category-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
+                <option value="all">Tất cả danh mục</option>
+                <% if (CONFIG.CATEGORIES && CONFIG.CATEGORIES.length > 0) { %>
+                    <% CONFIG.CATEGORIES.forEach(function(category){ %>
+                        <option value="<%= category %>" <%= filters.category === category ? 'selected' : '' %>><%= category %></option>
+                    <% }); %>
+                <% } %>
+            </select>
+            <select id="food-region-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
+                <option value="all">Tất cả vùng miền</option>
+                <% if (CONFIG.REGIONS && CONFIG.REGIONS.length > 0) { %>
+                    <% CONFIG.REGIONS.forEach(function(region){ %>
+                        <option value="<%= region %>" <%= filters.region === region ? 'selected' : '' %>><%= region %></option>
+                    <% }); %>
+                <% } %>
+            </select>
+            <select id="food-province-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
+                <option value="all">Tất cả tỉnh thành</option>
+                <% if (CONFIG.PROVINCES && CONFIG.PROVINCES.length > 0) { %>
+                    <% 
+                        // Lọc tỉnh thành theo vùng miền hiện tại (nếu có)
+                        const currentRegionProvinces = CONFIG.PROVINCES.filter(p => filters.region === 'all' || p.region === filters.region);
+                        currentRegionProvinces.forEach(function(province){ 
+                    %>
+                        <option value="<%= province.name %>" <%= filters.province === province.name ? 'selected' : '' %>><%= province.name %></option>
+                    <% }); %>
+                <% } %>
+            </select>
+        </div>
+    </div>
+    <div id="all-foods-list-container">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left table-auto">
+                <thead>
+                    <tr class="bg-gray-200 text-sm">
+                        <th class="p-3 font-semibold">Món Ăn</th>
+                        <th class="p-3 font-semibold">Danh Mục</th>
+                        <th class="p-3 font-semibold">Tỉnh/TP</th>
+                        <th class="p-3 font-semibold text-center">Trạng Thái</th>
+                        <th class="p-3 font-semibold text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (foods && foods.length > 0) { %>
+                        <% foods.forEach(function(food){ %>
+                            <tr class="border-b hover:bg-gray-50 text-sm clickable-row" data-id="<%= food._id %>" data-type="food">
+                                <td class="p-3 font-medium flex items-center">
+                                    <img src="<%= food.image.replace('600x400','100x75') %>" alt="<%= food.name %>" class="w-16 h-12 object-cover rounded-md mr-4">
+                                    <div class="flex-grow"><%= food.name %></div>
+                                </td>
+                                <td class="p-3">
+                                    <%= food.category === 'Các loại khác' && food.otherCategoryName ? food.otherCategoryName : food.category %>
+                                </td>
+                                <td class="p-3"><%= food.province %></td>
+                                <td class="p-3 text-center">
+                                    <% if (food.status === 'approved') { %>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã duyệt</span>
+                                    <% } else { %>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ duyệt</span>
+                                    <% } %>
+                                </td>
+                                <td class="p-3 text-center text-lg relative z-10">
+                                    <% if (food.status === 'approved') { %>
+                                        <button class="edit-food-btn text-blue-500 hover:text-blue-700" data-id="<%= food._id %>" title="Sửa"><i class="fas fa-edit"></i></button>
+                                        <button class="delete-food-btn text-red-500 hover:text-red-700 ml-3" data-id="<%= food._id %>" title="Xóa"><i class="fas fa-trash"></i></button>
+                                    <% } else { %>
+                                        <button class="approve-btn text-green-500 hover:text-green-700" data-id="<%= food._id %>" title="Duyệt"><i class="fas fa-check-circle"></i></button>
+                                        <button class="reject-btn text-red-500 hover:text-red-700 ml-3" data-id="<%= food._id %>" title="Từ chối"><i class="fas fa-times-circle"></i></button>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="5" class="p-3 text-center text-gray-500">Không tìm thấy món ăn nào.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

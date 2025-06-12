@@ -1,0 +1,6 @@
+body {
+    padding-top: 76px; /* Adjust based on final header height */
+}
+.carousel-slide {
+    transition: opacity 1s ease-in-out;
+}

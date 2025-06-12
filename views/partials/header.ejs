@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof title !== 'undefined' ? title : 'Hải Sản Bốn Phương' %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-gray-50">
+    <header id="main-header" class="bg-white shadow-md fixed top-0 left-0 right-0 z-40">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-extrabold text-red-600">HảiSảnViệt</a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="/" class="nav-link text-gray-600 hover:text-red-600 transition">Trang Chủ</a>
+                <a href="/all-foods" class="nav-link text-gray-600 hover:text-red-600 transition">Tất Cả Món Ăn</a>
+                <% if (isAuthenticated) { %>
+                    <a href="/foods/new" class="nav-link text-gray-600 hover:text-red-600 transition">Đăng Món Mới</a>
+                    <a href="/profile" class="nav-link text-gray-600 hover:text-red-600 transition">Hồ Sơ</a>
+                <% } %>
+            </div>
+            <div class="flex items-center space-x-3">
+                <% if (!isAuthenticated) { %>
+                    <!-- Nút này sẽ dẫn đến trang /login -->
+                    <div class="space-x-2">
+                        <a href="/login" class="px-4 py-2 text-sm font-semibold bg-red-500 text-white rounded-full hover:bg-red-600 transition">Đăng Nhập</a>
+                        <a href="/register" class="px-4 py-2 text-sm font-semibold bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition">Đăng Ký</a>
+                    </div>
+                <% } else { %>
+                    <!-- SỬA LỖI: Chuyển lại thành thẻ <a> để gửi request GET /logout -->
+                    <div class="flex items-center space-x-3">
+                        <span class="text-sm font-medium">Chào, <%= username %>!</span>
+                        <a href="/logout" id="logout-link" class="px-4 py-2 text-sm font-semibold bg-red-500 text-white rounded-full hover:bg-red-600 transition">Đăng Xuất</a>
+                    </div>
+                <% } %>
+                <button id="mobile-menu-btn" class="md:hidden text-2xl"><i class="fas fa-bars"></i></button>
+            </div>
+        </nav>
+        <!-- Mobile Menu (giữ nguyên) -->
+    </header>
+    
+    <!-- SCRIPT ĐỂ XỬ LÝ ĐĂNG XUẤT ĐÚNG CÁCH -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutLink = document.getElementById('logout-link');
+            if (logoutLink) {
+                logoutLink.addEventListener('click', function(event) {
+                    // Ngăn trình duyệt chuyển trang ngay lập tức
+                    event.preventDefault(); 
+
+                    // Gửi yêu cầu đăng xuất đến server trong nền
+                    fetch('/logout', {
+                        method: 'GET'
+                    }).then(() => {
+                        // Sau khi server xử lý xong, chuyển hướng về trang chủ
+                        window.location.href = '/';
+                    }).catch(error => {
+                        console.error('Lỗi khi đăng xuất:', error);
+                        // Dù có lỗi, vẫn chuyển hướng về trang chủ
+                        window.location.href = '/';
+                    });
+                });
+            }
+        });
+    </script>
+    
+    <main>

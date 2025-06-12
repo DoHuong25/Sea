@@ -1,0 +1,78 @@
+<section id="statistics" class="admin-page active">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500">Món Ăn Chờ Duyệt</p>
+                <p id="stats-pending" class="text-3xl font-bold"><%= statsData.pendingFoods %></p>
+            </div>
+            <div class="bg-yellow-100 rounded-full p-3">
+                <i class="fas fa-hourglass-half text-2xl text-yellow-500"></i>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500">Tổng Số Món Ăn</p>
+                <p id="stats-total-foods" class="text-3xl font-bold"><%= statsData.totalFoods %></p>
+            </div>
+            <div class="bg-green-100 rounded-full p-3">
+                <i class="fas fa-utensils text-2xl text-green-500"></i>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500">Tổng Người Dùng</p>
+                <p id="stats-total-users" class="text-3xl font-bold"><%= statsData.totalUsers %></p>
+            </div>
+            <div class="bg-blue-100 rounded-full p-3">
+                <i class="fas fa-users text-2xl text-blue-500"></i>
+            </div>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-md">
+            <h3 class="font-bold text-lg mb-4">Phân Bố Món Ăn</h3>
+            <div class="h-64 flex items-center justify-center">
+                <canvas id="category-chart"></canvas>
+            </div>
+        </div>
+        <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h3 class="font-bold text-lg mb-4">Top Món Ăn Quan Tâm Nhất</h3>
+                <ul id="stats-top-foods" class="space-y-3">
+                    <% if (topFoods && topFoods.length > 0) { %>
+                        <% topFoods.forEach(function(food){ %>
+                            <li class="flex items-center justify-between text-sm">
+                                <span class="truncate font-medium"><%= food.name %></span>
+                                <span class="font-bold text-red-500">
+                                    <i class="fas fa-star text-yellow-400 mr-1"></i> 
+                                    <%= food.avgRating ? food.avgRating.toFixed(1) : '0' %> 
+                                    (<%= food.totalRatings %>)
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="text-gray-500">Chưa có món ăn nào được đánh giá.</li>
+                    <% } %>
+                </ul>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-md">
+                <h3 class="font-bold text-lg mb-4">Top User Tích Cực Nhất</h3>
+                <ul id="stats-top-users" class="space-y-3">
+                    <% if (topUsers && topUsers.length > 0) { %>
+                        <% topUsers.forEach(function(item){ %>
+                            <li class="flex items-center justify-between text-sm">
+                                <span class="truncate font-medium"><%= item.username || 'N/A' %></span>
+                                <span class="font-bold text-red-500">
+                                    <i class="fas fa-pen-alt text-gray-400 mr-1"></i> 
+                                    <%= item.foodCount %>
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="text-gray-500">Chưa có người dùng nào đăng món ăn.</li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>

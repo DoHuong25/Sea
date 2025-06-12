@@ -1,0 +1,55 @@
+<section id="users" class="admin-page <%= currentPage === 'users' ? 'active' : '' %> bg-white rounded-2xl shadow-lg p-6">
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b pb-4">
+        <div class="flex items-center space-x-4">
+            <button class="filter-btn user-filter-btn py-2 px-1 <%= userFilters.role === 'all' ? 'active' : '' %>" data-filter="all">Tất cả</button>
+            <button class="filter-btn user-filter-btn py-2 px-1 <%= userFilters.role === 'admin' ? 'active' : '' %>" data-filter="admin">Admin</button>
+            <button class="filter-btn user-filter-btn py-2 px-1 <%= userFilters.role === 'user' ? 'active' : '' %>" data-filter="user">User</button>
+        </div>
+        <button id="add-new-user-btn" class="mt-4 sm:mt-0 w-full sm:w-auto bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 ease-in-out flex items-center justify-center">
+            <i class="fas fa-user-plus mr-2"></i>Thêm người dùng
+        </button>
+    </div>
+    <div id="users-list-container">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="p-3">Người dùng</th>
+                        <th class="p-3">Email</th>
+                        <th class="p-3">Vai trò</th>
+                        <th class="p-3 text-center">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (users && users.length > 0) { %>
+                        <% users.forEach(function(user){ %>
+                            <tr class="border-b hover:bg-gray-50 clickable-row" data-id="<%= user._id %>" data-type="user">
+                                <td class="p-3 flex items-center">
+                                    <img src="<%= user.avatar || '/images/avatars/default-avatar.png' %>" class="w-10 h-10 rounded-full mr-4 object-cover" alt="<%= user.username %> avatar">
+                                    <span class="font-medium"><%= user.username %></span>
+                                </td>
+                                <td class="p-3"><%= user.email || 'N/A' %></td>
+                                <td class="p-3">
+                                    <span class="font-semibold <%= user.role === 'admin' ? 'text-red-600' : 'text-gray-600' %>">
+                                        <%= user.role %>
+                                    </span>
+                                </td>
+                                <td class="p-3 text-center relative z-10">
+                                    <% if (user.role !== 'admin') { %>
+                                        <button class="edit-user-btn text-blue-500 hover:text-blue-700 mr-4" data-id="<%= user._id %>" title="Sửa"><i class="fas fa-edit"></i></button>
+                                        <button class="make-admin-btn text-green-500 hover:text-green-700 mr-4" data-id="<%= user._id %>" title="Cấp quyền Admin"><i class="fas fa-user-shield"></i></button>
+                                        <button class="delete-user-btn text-red-500 hover:text-red-700" data-id="<%= user._id %>" title="Xóa người dùng"><i class="fas fa-trash"></i></button>
+                                    <% } %>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="4" class="p-3 text-center text-gray-500">Không có người dùng nào phù hợp.</td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

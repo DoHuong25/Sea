@@ -1,0 +1,154 @@
+<%- include('../partials/header', { title: food.name }) %>
+
+<div class="bg-gray-50" style="padding-top: 68px;">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+            
+            <!-- Dish Image -->
+            <div class="mb-6">
+                <img src="<%= food.image %>" alt="<%= food.name %>" class="w-full h-96 object-cover rounded-xl shadow-md">
+            </div>
+
+            <!-- Dish Title & Meta Info -->
+            <div class="border-b pb-6 mb-6">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-3"><%= food.name %></h1>
+                <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 text-sm">
+                    <span class="flex items-center">
+                        <i class="fas fa-utensils mr-2 text-red-500"></i>
+                        <%= food.category %>
+                    </span>
+                    <span class="flex items-center">
+                        <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>
+                        <%= food.province %>
+                    </span>
+                    <% if (food.createdBy) { %>
+                        <span class="flex items-center">
+                            <i class="fas fa-user-edit mr-2 text-red-500"></i>
+                            Đăng bởi: <strong><%= food.createdBy.username %></strong>
+                        </span>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Dish Description -->
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">Mô tả món ăn</h2>
+                <p class="text-lg leading-relaxed text-gray-600"><%= food.description %></p>
+            </div>
+            
+            <!-- Suggested Restaurant (Đã sửa lỗi tên biến) -->
+            <% if (food.suggestedAt) { %>
+                <div class="mb-8 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
+                    <p class="font-semibold text-green-800">
+                        <i class="fas fa-store mr-2"></i>
+                        Gợi ý thử tại: <span class="font-normal"><%= food.suggestedAt %></span>
+                    </p>
+                </div>
+            <% } %>
+
+            <!-- Ratings & Reviews Section -->
+            <div class="border-t pt-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Đánh giá từ cộng đồng</h2>
+                <div id="reviews-list" class="space-y-6">
+                    <% if(food.ratings && food.ratings.length > 0) { %>
+                        <% food.ratings.forEach(rating => { %>
+                            <div class="flex gap-4">
+                                <img src="<%= rating.userId && rating.userId.avatar ? rating.userId.avatar : 'https://placehold.co/48x48/e2e8f0/64748b?text=U' %>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+                                <div class="flex-grow">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-gray-800"><%= rating.userId ? rating.userId.username : 'Ẩn danh' %></span>
+                                        <span class="text-sm text-gray-500"><%= new Date(rating.createdAt).toLocaleDateString('vi-VN') %></span>
+                                    </div>
+                                    <div class="my-1 text-yellow-400">
+                                        <% for(let i = 1; i <= 5; i++) { %>
+                                            <% if(rating.stars >= i) { %>
+                                                <i class="fas fa-star"></i>
+                                            <% } else { %>
+                                                <i class="far fa-star"></i>
+                                            <% } %>
+                                        <% } %>
+                                    </div>
+                                    <p class="text-gray-600"><%= rating.comment %></p>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <p class="text-gray-500">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Add Review Form -->
+            <% if (isAuthenticated) { %>
+                <div class="border-t pt-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Viết đánh giá của bạn</h2>
+                    <form action="/foods/<%= food._id %>/rate" method="POST" id="rate-food-form">
+                        <div class="mb-4">
+                            <label class="font-semibold block mb-2">Chấm điểm:</label>
+                            <div class="rating-input text-3xl text-gray-300">
+                                <% [1,2,3,4,5].forEach(i => { %>
+                                    <i class="far fa-star cursor-pointer hover:text-yellow-400" data-value="<%= i %>"></i>
+                                <% }) %>
+                                <input type="hidden" name="stars" value="0" required>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label for="comment" class="font-semibold block mb-2">Bình luận:</label>
+                            <textarea name="comment" rows="4" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300" placeholder="Chia sẻ cảm nhận của bạn về món ăn..."></textarea>
+                        </div>
+                        <button type="submit" class="px-8 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md">Gửi đánh giá</button>
+                    </form>
+                </div>
+            <% } else { %>
+                <div class="border-t pt-8 text-center">
+                    <p class="text-lg">Vui lòng <a href="/login" class="text-red-600 font-bold hover:underline">đăng nhập</a> để viết đánh giá của bạn.</p>
+                </div>
+            <% } %>
+
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT ĐỂ XỬ LÝ CHỌN SAO -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ratingForm = document.getElementById('rate-food-form');
+        if (ratingForm) {
+            const ratingInputContainer = ratingForm.querySelector('.rating-input');
+            const stars = ratingInputContainer.querySelectorAll('i.fa-star');
+            const hiddenInput = ratingInputContainer.querySelector('input[name="stars"]');
+
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    const value = star.dataset.value;
+                    hiddenInput.value = value;
+                    stars.forEach(s => {
+                        if (parseInt(s.dataset.value) <= parseInt(value)) {
+                            s.classList.add('fas', 'text-yellow-400');
+                            s.classList.remove('far', 'text-gray-300');
+                        } else {
+                            s.classList.add('far', 'text-gray-300');
+                            s.classList.remove('fas', 'text-yellow-400');
+                            s.classList.remove('text-yellow-400'); // Ensure yellow is removed
+                            s.classList.add('text-gray-300'); // Ensure gray is added back
+                        }
+                    });
+                });
+            });
+
+            ratingForm.addEventListener('submit', (e) => {
+                if (hiddenInput.value === '0') {
+                    e.preventDefault();
+                    // Thay thế alert bằng một thông báo trên UI
+                    const errorMessage = document.createElement('p');
+                    errorMessage.textContent = 'Vui lòng chọn số sao để đánh giá.';
+                    errorMessage.className = 'text-red-500 text-sm mt-2';
+                    ratingForm.prepend(errorMessage);
+                    setTimeout(() => errorMessage.remove(), 3000); // Tự động xóa thông báo sau 3 giây
+                }
+            });
+        }
+    });
+</script>
+
+<%- include('../partials/footer') %>

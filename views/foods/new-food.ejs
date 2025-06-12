@@ -1,0 +1,133 @@
+<%- include('../partials/header', { title: 'Đăng Món Ăn Mới' }) %>
+
+<div class="bg-gray-50" style="padding-top: 68px;">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-lg">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">Chia sẻ Món ăn của bạn</h1>
+            <p class="text-gray-500 mb-8">Điền vào các thông tin dưới đây để chia sẻ món hải sản tuyệt vời của bạn với cộng đồng.</p>
+            
+            <form id="new-food-form" action="/foods" method="POST" enctype="multipart/form-data" class="space-y-6">
+                
+                <div>
+                    <label for="name" class="font-semibold text-sm mb-2 block text-gray-700">Tên món ăn*</label>
+                    <input type="text" id="name" name="name" required placeholder="VD: Tôm hùm nướng phô mai" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="category" class="font-semibold text-sm mb-2 block text-gray-700">Loại hải sản*</label>
+                        <select name="category" id="category" required class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                            <% seafoodCategories.forEach(c => { %>
+                                <option value="<%= c %>"><%= c %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div id="other-category-wrapper" class="hidden">
+                        <label for="otherCategoryName" class="font-semibold text-sm mb-2 block text-gray-700">Tên loại khác*</label>
+                        <input type="text" id="otherCategoryName" name="otherCategoryName" placeholder="VD: Bào ngư" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="province" class="font-semibold text-sm mb-2 block text-gray-700">Tỉnh / Thành phố*</label>
+                    <select name="province" id="province" required class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                         <% provinces.forEach(p => { %>
+                            <option value="<%= p %>"><%= p %></option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="description" class="font-semibold text-sm mb-2 block text-gray-700">Mô tả</label>
+                    <textarea id="description" name="description" rows="4" placeholder="Mô tả về hương vị, cách chế biến, hoặc câu chuyện về món ăn..." class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition"></textarea>
+                </div>
+
+                <div>
+                    <label for="suggestedRestaurant" class="font-semibold text-sm mb-2 block text-gray-700">Nhà hàng gợi ý (Không bắt buộc)</label>
+                    <input type="text" id="suggestedRestaurant" name="suggestedRestaurant" placeholder="VD: Nhà hàng Hải Sản Biển Đông" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                </div>
+
+                <div>
+                    <label class="font-semibold text-sm mb-2 block text-gray-700">Ảnh minh họa*</label>
+                    <input type="file" id="image" name="image" required accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+                </div>
+
+                <div class="pt-4 text-right">
+                    <button type="submit" class="px-8 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md">Đăng Món Ăn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div id="success-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+        <div class="w-20 h-20 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-6">
+            <i class="fas fa-check-circle text-5xl text-green-500"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-3">Gửi thành công!</h2>
+        <p class="text-gray-600 mb-6">Món ăn của bạn đã được gửi đến ban quản trị và đang chờ duyệt. Cảm ơn bạn đã đóng góp!</p>
+        <a href="/profile" class="w-full px-8 py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition">Về trang hồ sơ</a>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const newFoodForm = document.getElementById('new-food-form');
+        const successModal = document.getElementById('success-modal');
+        const categorySelect = document.getElementById('category');
+
+        // Logic để hiển thị ô nhập "Tên loại khác"
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function() {
+                const otherCategoryWrapper = document.getElementById('other-category-wrapper');
+                if (this.value === 'Các loại khác') {
+                    otherCategoryWrapper.classList.remove('hidden');
+                } else {
+                    otherCategoryWrapper.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Logic xử lý form submission với thông báo chờ duyệt
+        if (newFoodForm) {
+            newFoodForm.addEventListener('submit', async function(e) {
+                e.preventDefault(); // Ngăn chặn form gửi theo cách truyền thống
+
+                const submitButton = this.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+                submitButton.innerHTML = 'Đang xử lý...';
+
+                const formData = new FormData(this);
+                
+                try {
+                    const response = await fetch('/foods', {
+                        method: 'POST',
+                        body: formData
+                        // Không cần set 'Content-Type', trình duyệt sẽ tự làm khi có FormData
+                    });
+
+                    if (response.ok) {
+                        // Nếu server phản hồi thành công, hiển thị modal
+                        successModal.classList.remove('hidden');
+                    } else {
+                        // Nếu có lỗi từ server, hiển thị thông báo lỗi
+                        const errorText = await response.text();
+                        alert('Đã có lỗi xảy ra: ' + errorText);
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = 'Đăng Món Ăn';
+                    }
+                } catch (error) {
+                    // Nếu có lỗi mạng
+                    console.error('Fetch error:', error);
+                    alert('Lỗi kết nối, vui lòng thử lại.');
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Đăng Món Ăn';
+                }
+            });
+        }
+    });
+</script>
+
+<%- include('../partials/footer') %>
