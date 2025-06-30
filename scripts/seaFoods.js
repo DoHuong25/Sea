@@ -110,7 +110,7 @@ const foods = [
     console.log(`✅ Successfully added ${foods.length} food items!`);
     
     // Optional: Add a default admin user if it doesn't exist
-    const User = require('../models/user');
+    const User = require('../models/User');
     const bcrypt = require('bcrypt');
     const adminUser = await User.findOne({ username: 'admin' });
     if (!adminUser) {

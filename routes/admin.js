@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Food = require('../models/Food'); // Import Food model
-const User = require('../models/user'); // Import User model
+const User = require('../models/User'); // Import User model
 const { isLoggedIn, isAdmin } = require('../middlewares/auth'); // Đảm bảo các middleware này đã được import và định nghĩa đúng
 const multer = require('multer'); // Import multer cho xử lý file upload trong admin routes
 const path = require('path');

@@ -5,9 +5,9 @@
         <div class="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-lg">
             <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-2">Chia sẻ Món ăn của bạn</h1>
             <p class="text-gray-500 mb-8">Điền vào các thông tin dưới đây để chia sẻ món hải sản tuyệt vời của bạn với cộng đồng.</p>
-            
+
             <form id="new-food-form" action="/foods" method="POST" enctype="multipart/form-data" class="space-y-6">
-                
+
                 <div>
                     <label for="name" class="font-semibold text-sm mb-2 block text-gray-700">Tên món ăn*</label>
                     <input type="text" id="name" name="name" required placeholder="VD: Tôm hùm nướng phô mai" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
@@ -29,12 +29,11 @@
                 </div>
 
                 <div>
-                    <label for="province" class="font-semibold text-sm mb-2 block text-gray-700">Tỉnh / Thành phố*</label>
-                    <select name="province" id="province" required class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
-                         <% provinces.forEach(p => { %>
-                            <option value="<%= p %>"><%= p %></option>
-                        <% }) %>
-                    </select>
+                    <label for="province" class="form-label">Tỉnh / Thành phố*</label>
+                    <input type="text" id="province" name="province" required placeholder="VD: Hà Nội"
+                           class="form-input"
+                           value="<%= typeof formData !== 'undefined' ? formData.province || '' : '' %>"
+                           oninput="updateRegion()">
                 </div>
 
                 <div>
@@ -42,9 +41,10 @@
                     <textarea id="description" name="description" rows="4" placeholder="Mô tả về hương vị, cách chế biến, hoặc câu chuyện về món ăn..." class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition"></textarea>
                 </div>
 
+                <!-- 🔻 ĐÃ THÊM suggestedAt vào đây -->
                 <div>
-                    <label for="suggestedRestaurant" class="font-semibold text-sm mb-2 block text-gray-700">Nhà hàng gợi ý (Không bắt buộc)</label>
-                    <input type="text" id="suggestedRestaurant" name="suggestedRestaurant" placeholder="VD: Nhà hàng Hải Sản Biển Đông" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
+                    <label for="suggestedAt" class="font-semibold text-sm mb-2 block text-gray-700">Gợi ý thử tại*</label>
+                    <input type="text" id="suggestedAt" name="suggestedAt" required placeholder="VD: Quán gần chợ Bến Thành hoặc khu phố biển" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300 transition">
                 </div>
 
                 <div>
@@ -78,9 +78,8 @@
         const successModal = document.getElementById('success-modal');
         const categorySelect = document.getElementById('category');
 
-        // Logic để hiển thị ô nhập "Tên loại khác"
         if (categorySelect) {
-            categorySelect.addEventListener('change', function() {
+            categorySelect.addEventListener('change', function () {
                 const otherCategoryWrapper = document.getElementById('other-category-wrapper');
                 if (this.value === 'Các loại khác') {
                     otherCategoryWrapper.classList.remove('hidden');
@@ -89,37 +88,32 @@
                 }
             });
         }
-        
-        // Logic xử lý form submission với thông báo chờ duyệt
+
         if (newFoodForm) {
-            newFoodForm.addEventListener('submit', async function(e) {
-                e.preventDefault(); // Ngăn chặn form gửi theo cách truyền thống
+            newFoodForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
 
                 const submitButton = this.querySelector('button[type="submit"]');
                 submitButton.disabled = true;
                 submitButton.innerHTML = 'Đang xử lý...';
 
                 const formData = new FormData(this);
-                
+
                 try {
                     const response = await fetch('/foods', {
                         method: 'POST',
                         body: formData
-                        // Không cần set 'Content-Type', trình duyệt sẽ tự làm khi có FormData
                     });
 
                     if (response.ok) {
-                        // Nếu server phản hồi thành công, hiển thị modal
                         successModal.classList.remove('hidden');
                     } else {
-                        // Nếu có lỗi từ server, hiển thị thông báo lỗi
                         const errorText = await response.text();
                         alert('Đã có lỗi xảy ra: ' + errorText);
                         submitButton.disabled = false;
                         submitButton.innerHTML = 'Đăng Món Ăn';
                     }
                 } catch (error) {
-                    // Nếu có lỗi mạng
                     console.error('Fetch error:', error);
                     alert('Lỗi kết nối, vui lòng thử lại.');
                     submitButton.disabled = false;

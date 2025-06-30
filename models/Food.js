@@ -1,11 +1,12 @@
+// models/Food.js
 const mongoose = require('mongoose');
 
 const FoodSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Tên món ăn là bắt buộc.'], // Tên món ăn là bắt buộc
+        required: [true, 'Tên món ăn là bắt buộc.'],
         trim: true,
-        unique: true, // <--- THÊM DÒNG NÀY ĐỂ TÊN MÓN ĂN LÀ DUY NHẤT
+        unique: true, // Đảm bảo tên món ăn là duy nhất và xử lý lỗi duplicate index
         maxlength: [100, 'Tên món ăn không được quá 100 ký tự.']
     },
     description: {
@@ -15,24 +16,24 @@ const FoodSchema = new mongoose.Schema({
     },
     image: {
         type: String,
-        required: [true, 'Ảnh minh họa là bắt buộc.'],
-        default: '/images/default-food.png'
+        required: [true, 'Ảnh minh họa là bắt buộc.'] // Ảnh là bắt buộc, không có default ở đây
+        // default: '/images/default-food.png' // Bỏ default vì đã có required
     },
     province: {
         type: String,
         required: [true, 'Tỉnh/Thành phố là bắt buộc.'],
         trim: true
     },
-    region: { 
+    region: {
         type: String,
         required: [true, 'Vùng miền là bắt buộc.'],
         trim: true
     },
     suggestedAt: {
         type: String,
-        required: [true, 'Gợi ý thử tại là bắt buộc.'], // <-- THÊM DÒNG NÀY ĐỂ TRƯỜNG LÀ BẮT BUỘC
+        required: [true, 'Gợi ý thử tại là bắt buộc.'], // Giữ lại là bắt buộc theo yêu cầu của bạn
         trim: true,
-        maxlength: [200, 'Gợi ý thử tại không được quá 200 ký tự.'] // Có thể thêm maxlength nếu muốn
+        maxlength: [200, 'Gợi ý thử tại không được quá 200 ký tự.']
     },
     category: {
         type: String,
@@ -40,7 +41,7 @@ const FoodSchema = new mongoose.Schema({
         enum: ['Tôm', 'Cua', 'Ghẹ', 'Mực', 'Bạch tuộc', 'Cá', 'Bề bề', 'Ốc', 'Sò', 'Các loại khác'],
         trim: true
     },
-    otherCategoryName: { 
+    otherCategoryName: {
         type: String,
         trim: true
     },
@@ -63,9 +64,9 @@ const FoodSchema = new mongoose.Schema({
             },
             stars: {
                 type: Number,
-                min: 1,
-                max: 5,
-                required: true
+                min: [1, 'Số sao phải từ 1 đến 5.'],
+                max: [5, 'Số sao phải từ 1 đến 5.'],
+                required: [true, 'Số sao đánh giá là bắt buộc.']
             },
             comment: {
                 type: String,
@@ -82,6 +83,7 @@ const FoodSchema = new mongoose.Schema({
     timestamps: true
 });
 
-FoodSchema.index({ name: 1 }, { unique: true });
+// Loại bỏ dòng này vì unique: true đã được đặt trực tiếp trên trường 'name'
+// FoodSchema.index({ name: 1 }, { unique: true });
 
 module.exports = mongoose.model('Food', FoodSchema);

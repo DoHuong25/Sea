@@ -1,7 +1,8 @@
+
 const express = require('express');
 const router = express.Router();
 const Food = require('../models/Food');
-const User = require('../models/user');
+const User = require('../models/User');
 // Đảm bảo các middleware này đã được định nghĩa và import đúng
 // (isLoggedIn để kiểm tra đăng nhập, isAdmin nếu có vai trò quản trị viên)
 const { isLoggedIn, isAdmin } = require('../middlewares/auth');
