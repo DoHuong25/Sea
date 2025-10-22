@@ -1,0 +1,64 @@
+<%_ /* views/admin/comments.ejs */ _%>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Quản Lý Bình Luận</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2" id="comment-filter-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">Tất cả</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="3-5">Tốt (3-5 sao)</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="1-2">Tệ (1-2 sao)</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th scope="col">Món ăn</th>
+                <th scope="col">Người dùng</th>
+                <th scope="col" class="text-center">Đánh giá</th>
+                <th scope="col">Bình luận</th>
+                <th scope="col">Ngày</th>
+                <th scope="col" class="text-center">Hành động</th>
+            </tr>
+        </thead>
+        <tbody id="comments-table-body">
+            </tbody>
+    </table>
+    <div id="loading-spinner" class="text-center my-4" style="display: none;">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="comment-details-modal" tabindex="-1" aria-labelledby="commentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentDetailsModalLabel">Chi Tiết Bình Luận</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Món ăn:</strong> <a href="#" id="modal-food-link" target="_blank"></a></p>
+                <p><strong>Người bình luận:</strong> <a href="#" id="modal-user-link" target="_blank"></a></p>
+                <p><strong>Đánh giá:</strong> <span id="modal-stars"></span></p>
+                <p><strong>Ngày:</strong> <span id="modal-date"></span></p>
+                <hr>
+                <p><strong>Nội dung:</strong></p>
+                <blockquote class="blockquote">
+                    <p id="modal-comment-text"></p>
+                </blockquote>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Logic JavaScript sẽ được đặt trong file script riêng hoặc ở đây
+</script>

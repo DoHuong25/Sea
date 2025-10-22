@@ -3,1147 +3,451 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trang Quản Trị - Hải Sản Việt</title>
-    <!-- Tailwind CSS -->
+    <title><%= title %></title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chart.js for charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9; /* slate-100 */
-        }
-        .admin-page { display: none; }
-        .admin-page.active { display: block; }
-        .sidebar-link.active {
-            background-color: #ef4444; /* red-500 */
-            color: white;
-            font-weight: 600;
-        }
-        .sidebar-link { transition: all 0.2s ease-in-out; }
-        .sidebar-link:hover:not(.active) {
-            background-color: #fee2e2; /* red-100 */
-            color: #b91c1c; /* red-800 */
-        }
-        .modal-overlay { animation: fadeIn 0.3s ease-out; }
-        .modal-container { animation: slideInUp 0.4s ease-out; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .sidebar-link.active { background-color: #ef4444; color: white; font-weight: 600; }
+        .sidebar-link:hover:not(.active) { background-color: #fee2e2; color: #b91c1c; }
+        .filter-btn { transition: all 0.2s ease-in-out; border-bottom: 2px solid transparent; padding-bottom: 0.25rem; }
+        .filter-btn.active { font-weight: 600; }
+        .food-status-filter.active { border-bottom-color: #ef4444; color: #ef4444; }
+        .user-filter-btn.active, .comment-filter-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+        .spinner { border: 4px solid rgba(0,0,0,0.1); border-left-color: #ef4444; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); z-index: 50; display: flex; justify-content: center; align-items: center; padding: 1rem; animation: fadeIn 0.3s ease-out; }
+        .modal-container { background: white; border-radius: 0.5rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); width: 100%; max-height: 90vh; display: flex; flex-direction: column; animation: slideInUp 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideInUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        /* Filter tabs */
-        .filter-btn {
-            transition: all 0.2s ease-in-out;
-            border-bottom: 2px solid transparent;
-        }
-        .filter-btn.active {
-            border-bottom-color: #ef4444; /* red-500 */
-            color: #ef4444;
-            font-weight: 600;
-        }
-        .user-filter-btn.active {
-             border-bottom-color: #3b82f6; /* blue-500 */
-            color: #3b82f6;
-        }
-
-        /* Toast Notifications */
-        @keyframes toast-in {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes toast-out {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        .toast-in { animation: toast-in 0.5s ease-out forwards; }
-        .toast-out { animation: toast-out 0.5s ease-in forwards; }
-
-        /* Clickable row style */
-        .clickable-row {
-            cursor: pointer;
-        }
-        /* Star rating styles */
-        .star-rating .fa-star {
-            color: #d1d5db; /* Default gray star */
-            cursor: pointer;
-        }
-        .star-rating .fa-star.active {
-            color: #fbbf24; /* Yellow star */
-        }
-        /* Loading spinner */
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #ef4444;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .clickable-item { cursor: pointer; }
     </style>
 </head>
 <body class="text-gray-800">
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-3"></div>
 
     <div class="flex h-screen bg-gray-100">
         <!-- Sidebar -->
         <aside class="w-64 bg-white shadow-md flex-shrink-0 flex flex-col">
-            <div class="p-6">
-                <a href="/admin" class="text-2xl font-extrabold text-red-600">AdminPanel</a>
-            </div>
+            <div class="p-6"><a href="/admin" class="text-2xl font-extrabold text-red-600">AdminPanel</a></div>
             <nav class="mt-2 flex-1">
-                <a href="/admin?page=statistics" class="sidebar-link flex items-center py-3 px-6 text-gray-700 <% if (currentPage === 'statistics') { %>active<% } %>" data-page="statistics">
-                    <i class="fas fa-chart-line fa-fw mr-3"></i> Thống Kê
-                </a>
-                <a href="/admin?page=all-foods" class="sidebar-link flex items-center py-3 px-6 text-gray-700 <% if (currentPage === 'all-foods') { %>active<% } %>" data-page="all-foods">
-                    <i class="fas fa-utensils fa-fw mr-3"></i> Quản Lý Món Ăn
-                    <span id="pending-count" class="ml-auto bg-yellow-400 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full"></span>
-                </a>
-                <a href="/admin?page=users" class="sidebar-link flex items-center py-3 px-6 text-gray-700 <% if (currentPage === 'users') { %>active<% } %>" data-page="users">
-                    <i class="fas fa-users-cog fa-fw mr-3"></i> Quản Lý Người Dùng
-                </a>
+                <a href="/admin?page=statistics" class="sidebar-link flex items-center py-3 px-6 text-gray-700"><i class="fas fa-chart-line fa-fw mr-3"></i> Thống Kê</a>
+                <a href="/admin?page=all-foods" class="sidebar-link flex items-center py-3 px-6 text-gray-700"><i class="fas fa-utensils fa-fw mr-3"></i> Món Ăn</a>
+                <a href="/admin?page=users" class="sidebar-link flex items-center py-3 px-6 text-gray-700"><i class="fas fa-users-cog fa-fw mr-3"></i> Người Dùng</a>
+                <a href="/admin?page=comments" class="sidebar-link flex items-center py-3 px-6 text-gray-700"><i class="fas fa-comments fa-fw mr-3"></i> Bình Luận</a>
             </nav>
-            <div class="p-6">
-                <a href="/logout" class="sidebar-link flex items-center py-2 px-4 text-gray-700 rounded-lg hover:bg-gray-200">
-                    <i class="fas fa-sign-out-alt fa-fw mr-3"></i> Đăng Xuất
-                </a>
-            </div>
+            <div class="p-6"><a href="/logout" class="sidebar-link flex items-center py-2 px-4 text-gray-700 rounded-lg hover:bg-gray-200"><i class="fas fa-sign-out-alt fa-fw mr-3"></i> Đăng Xuất</a></div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <header class="bg-white shadow-sm">
                 <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-                    <h1 id="page-title" class="text-2xl font-bold text-gray-800">
-                        <% if (currentPage === 'statistics') { %>Thống Kê<% } %>
-                        <% if (currentPage === 'all-foods') { %>Quản Lý Món Ăn<% } %>
-                        <% if (currentPage === 'users') { %>Quản Lý Người Dùng<% } %>
-                    </h1>
+                    <h1 id="page-title" class="text-2xl font-bold text-gray-800"></h1>
                     <div class="flex items-center">
-                        <span id="admin-username" class="mr-4 font-semibold">Chào, <%= username %>!</span>
-                        <img id="admin-avatar" class="h-10 w-10 rounded-full object-cover" src="<%= locals.user && locals.user.avatar ? locals.user.avatar : 'https://i.pravatar.cc/150?u=admin' %>" alt="Admin Avatar">
+                        <span class="mr-4 font-semibold">Chào, <%= locals.user ? locals.user.username : 'Admin' %>!</span>
+                        <img class="h-10 w-10 rounded-full object-cover" src="<%= locals.user && locals.user.avatar ? locals.user.avatar : '/images/avatars/default-avatar.png' %>" alt="Avatar">
                     </div>
                 </div>
             </header>
-            <div class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                <div class="container mx-auto">
-                    <!-- Statistics Page Content -->
-                    <section id="statistics" class="admin-page <%= currentPage === 'statistics' ? 'active' : '' %>">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                            <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-500">Món Ăn Chờ Duyệt</p>
-                                    <p id="stats-pending" class="text-3xl font-bold"><%= locals.statsData ? locals.statsData.pendingFoods : '0' %></p>
-                                </div>
-                                <div class="bg-yellow-100 rounded-full p-3">
-                                    <i class="fas fa-hourglass-half text-2xl text-yellow-500"></i>
-                                </div>
-                            </div>
-                            <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-500">Tổng Số Món Ăn</p>
-                                    <p id="stats-total-foods" class="text-3xl font-bold"><%= locals.statsData ? locals.statsData.totalFoods : '0' %></p>
-                                </div>
-                                <div class="bg-green-100 rounded-full p-3">
-                                    <i class="fas fa-utensils text-2xl text-green-500"></i>
-                                </div>
-                            </div>
-                            <div class="bg-white p-6 rounded-2xl shadow-md flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-500">Tổng Người Dùng</p>
-                                    <p id="stats-total-users" class="text-3xl font-bold"><%= locals.statsData ? locals.statsData.totalUsers : '0' %></p>
-                                </div>
-                                <div class="bg-blue-100 rounded-full p-3">
-                                    <i class="fas fa-users text-2xl text-blue-500"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-md">
-                                <h3 class="font-bold text-lg mb-4">Phân Bố Món Ăn</h3>
-                                <div class="h-64 flex items-center justify-center">
-                                    <canvas id="category-chart"></canvas>
-                                </div>
-                            </div>
-                            <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="bg-white p-6 rounded-2xl shadow-md">
-                                    <h3 class="font-bold text-lg mb-4">Top Món Ăn Quan Tâm Nhất</h3>
-                                    <ul id="stats-top-foods" class="space-y-3">
-                                        <% if (locals.topFoods && locals.topFoods.length > 0) { %>
-                                            <% locals.topFoods.forEach(function(food){ %>
-                                                <li class="flex items-center justify-between text-sm">
-                                                    <span class="truncate font-medium"><%= food.name %></span>
-                                                    <span class="font-bold text-red-500">
-                                                        <i class="fas fa-star text-yellow-400 mr-1"></i> 
-                                                        <%= food.avgRating ? food.avgRating.toFixed(1) : '0' %> 
-                                                        (<%= food.totalRatings %>)
-                                                    </span>
-                                                </li>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <li class="text-gray-500">Chưa có món ăn nào được đánh giá.</li>
-                                        <% } %>
-                                    </ul>
-                                </div>
-                                <div class="bg-white p-6 rounded-2xl shadow-md">
-                                    <h3 class="font-bold text-lg mb-4">Top User Tích Cực Nhất</h3>
-                                    <ul id="stats-top-users" class="space-y-3">
-                                        <% if (locals.topUsers && locals.topUsers.length > 0) { %>
-                                            <% locals.topUsers.forEach(function(item){ %>
-                                                <li class="flex items-center justify-between text-sm">
-                                                    <span class="truncate font-medium"><%= item.username || 'N/A' %></span>
-                                                    <span class="font-bold text-red-500">
-                                                        <i class="fas fa-pen-alt text-gray-400 mr-1"></i> 
-                                                        <%= item.foodCount %>
-                                                    </span>
-                                                </li>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <li class="text-gray-500">Chưa có người dùng nào đăng món ăn.</li>
-                                        <% } %>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                    
-                    <!-- All Foods Page Content -->
-                    <section id="all-foods" class="admin-page <%= currentPage === 'all-foods' ? 'active' : '' %> bg-white rounded-2xl shadow-lg p-6">
-                        <div class="flex flex-col gap-4 mb-4 border-b pb-4">
-                            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-                                <div class="flex items-center space-x-4">
-                                    <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= locals.filters && locals.filters.status === 'all' ? 'active' : '' %>" data-status-filter="all">Tất cả</button>
-                                    <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= locals.filters && locals.filters.status === 'pending' ? 'active' : '' %>" data-status-filter="pending">Chờ duyệt</button>
-                                    <button class="filter-btn py-2 px-1 text-sm sm:text-base whitespace-nowrap <%= locals.filters && locals.filters.status === 'approved' ? 'active' : '' %>" data-status-filter="approved">Đã duyệt</button>
-                                </div>
-                                <button id="add-new-food-btn" class="w-full sm:w-auto bg-gradient-to-r from-red-500 to-red-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 ease-in-out flex items-center justify-center whitespace-nowrap">
-                                    <i class="fas fa-plus-circle mr-2"></i>Thêm món mới
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 xl:col-span-4 gap-4 items-center">
-                                <div class="relative xl:col-span-2">
-                                    <input type="text" id="food-search-by-name" placeholder="Tìm theo tên món..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500" value="<%= locals.filters && locals.filters.name ? locals.filters.name : '' %>">
-                                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                </div>
-                                <div class="relative xl:col-span-2">
-                                     <input type="text" id="food-search-by-location" placeholder="Tìm theo vùng miền, tỉnh thành..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500" value="<%= locals.filters && locals.filters.location ? locals.filters.location : '' %>">
-                                    <i class="fas fa-map-marker-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                                 <select id="food-category-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
-                                    <option value="all">Tất cả danh mục</option>
-                                    <% if (locals.CONFIG && locals.CONFIG.CATEGORIES && locals.CONFIG.CATEGORIES.length > 0) { %>
-                                        <% locals.CONFIG.CATEGORIES.forEach(function(category){ %>
-                                            <option value="<%= category %>" <%= locals.filters && locals.filters.category === category ? 'selected' : '' %>><%= category %></option>
-                                        <% }); %>
-                                    <% } %>
-                                </select>
-                                <select id="food-region-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
-                                    <option value="all">Tất cả vùng miền</option>
-                                    <% if (locals.CONFIG && locals.CONFIG.REGIONS && locals.CONFIG.REGIONS.length > 0) { %>
-                                        <% locals.CONFIG.REGIONS.forEach(function(region){ %>
-                                            <option value="<%= region %>" <%= locals.filters && locals.filters.region === region ? 'selected' : '' %>><%= region %></option>
-                                        <% }); %>
-                                    <% } %>
-                                </select>
-                                <select id="food-province-filter" class="w-full border rounded-lg px-2 py-2 focus:ring-red-500 focus:border-red-500">
-                                    <option value="all">Tất cả tỉnh thành</option>
-                                    <% if (locals.CONFIG && locals.CONFIG.PROVINCES && locals.CONFIG.PROVINCES.length > 0) { %>
-                                        <% 
-                                            // Lọc tỉnh thành theo vùng miền hiện tại (nếu có)
-                                            const currentRegionProvinces = (locals.CONFIG.PROVINCES || []).filter(p => (locals.filters && locals.filters.region === 'all') || p.region === locals.filters.region);
-                                            currentRegionProvinces.forEach(function(province){ 
-                                        %>
-                                            <option value="<%= province.name %>" <%= locals.filters && locals.filters.province === province.name ? 'selected' : '' %>><%= province.name %></option>
-                                        <% }); %>
-                                    <% } %>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="all-foods-list-container">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left table-auto">
-                                    <thead>
-                                        <tr class="bg-gray-200 text-sm">
-                                            <th class="p-3 font-semibold">Món Ăn</th>
-                                            <th class="p-3 font-semibold">Danh Mục</th>
-                                            <th class="p-3 font-semibold">Tỉnh/TP</th>
-                                            <th class="p-3 font-semibold text-center">Trạng Thái</th>
-                                            <th class="p-3 font-semibold text-center">Hành Động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (locals.foods && locals.foods.length > 0) { %>
-                                            <% locals.foods.forEach(function(food){ %>
-                                                <tr class="border-b hover:bg-gray-50 text-sm clickable-row" data-id="<%= food._id %>" data-type="food">
-                                                    <td class="p-3 font-medium flex items-center">
-                                                        <img src="<%= food.image.replace('600x400','100x75') %>" alt="<%= food.name %>" class="w-16 h-12 object-cover rounded-md mr-4">
-                                                        <div class="flex-grow"><%= food.name %></div>
-                                                    </td>
-                                                    <td class="p-3">
-                                                        <%= food.category === 'Các loại khác' && food.otherCategoryName ? food.otherCategoryName : food.category %>
-                                                    </td>
-                                                    <td class="p-3"><%= food.province %></td>
-                                                    <td class="p-3 text-center">
-                                                        <% if (food.status === 'approved') { %>
-                                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã duyệt</span>
-                                                        <% } else { %>
-                                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ duyệt</span>
-                                                        <% } %>
-                                                    </td>
-                                                    <td class="p-3 text-center text-lg relative z-10">
-                                                        <% if (food.status === 'approved') { %>
-                                                            <button class="edit-food-btn text-blue-500 hover:text-blue-700" data-id="<%= food._id %>" title="Sửa"><i class="fas fa-edit"></i></button>
-                                                            <button class="delete-food-btn text-red-500 hover:text-red-700 ml-3" data-id="<%= food._id %>" title="Xóa"><i class="fas fa-trash"></i></button>
-                                                        <% } else { %>
-                                                            <button class="approve-btn text-green-500 hover:text-green-700" data-id="<%= food._id %>" title="Duyệt"><i class="fas fa-check-circle"></i></button>
-                                                            <button class="reject-btn text-red-500 hover:text-red-700 ml-3" data-id="<%= food._id %>" title="Từ chối"><i class="fas fa-times-circle"></i></button>
-                                                        <% } %>
-                                                    </td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr>
-                                                <td colspan="5" class="p-3 text-center text-gray-500">Không tìm thấy món ăn nào.</td>
-                                            </tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Users Page Content -->
-                    <section id="users" class="admin-page <%= currentPage === 'users' ? 'active' : '' %> bg-white rounded-2xl shadow-lg p-6">
-                        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 border-b pb-4">
-                            <div class="flex items-center space-x-4">
-                                <button class="filter-btn user-filter-btn py-2 px-1 <%= locals.userFilters && locals.userFilters.role === 'all' ? 'active' : '' %>" data-filter="all">Tất cả</button>
-                                <button class="filter-btn user-filter-btn py-2 px-1 <%= locals.userFilters && locals.userFilters.role === 'admin' ? 'active' : '' %>" data-filter="admin">Admin</button>
-                                <button class="filter-btn user-filter-btn py-2 px-1 <%= locals.userFilters && locals.userFilters.role === 'user' ? 'active' : '' %>" data-filter="user">User</button>
-                            </div>
-                            <button id="add-new-user-btn" class="mt-4 sm:mt-0 w-full sm:w-auto bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 ease-in-out flex items-center justify-center">
-                                <i class="fas fa-user-plus mr-2"></i>Thêm người dùng
-                            </button>
-                        </div>
-                        <div id="users-list-container">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left">
-                                    <thead>
-                                        <tr class="bg-gray-200">
-                                            <th class="p-3">Người dùng</th>
-                                            <th class="p-3">Email</th>
-                                            <th class="p-3">Vai trò</th>
-                                            <th class="p-3 text-center">Hành Động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% if (locals.users && locals.users.length > 0) { %>
-                                            <% locals.users.forEach(function(user){ %>
-                                                <tr class="border-b hover:bg-gray-50 clickable-row" data-id="<%= user._id %>" data-type="user">
-                                                    <td class="p-3 flex items-center">
-                                                        <img src="<%= user.avatar || '/images/avatars/default-avatar.png' %>" class="w-10 h-10 rounded-full mr-4 object-cover" alt="<%= user.username %> avatar">
-                                                        <span class="font-medium"><%= user.username %></span>
-                                                    </td>
-                                                    <td class="p-3"><%= user.email || 'N/A' %></td>
-                                                    <td class="p-3">
-                                                        <span class="font-semibold <%= user.role === 'admin' ? 'text-red-600' : 'text-gray-600' %>">
-                                                            <%= user.role %>
-                                                        </span>
-                                                    </td>
-                                                    <td class="p-3 text-center relative z-10">
-                                                        <% 
-                                                            // Cho phép admin chỉnh sửa tài khoản của chính mình
-                                                            const canEditSelf = locals.user && locals.user._id && user._id && locals.user._id.toString() === user._id.toString(); 
-                                                        %>
-                                                        <% if (user.role !== 'admin' || canEditSelf) { %>
-                                                            <button class="edit-user-btn text-blue-500 hover:text-blue-700 mr-4" data-id="<%= user._id %>" title="Sửa"><i class="fas fa-edit"></i></button>
-                                                            <% if (user.role !== 'admin') { %>
-                                                                <button class="make-admin-btn text-green-500 hover:text-green-700 mr-4" data-id="<%= user._id %>" title="Cấp quyền Admin"><i class="fas fa-user-shield"></i></button>
-                                                                <button class="delete-user-btn text-red-500 hover:text-red-700" data-id="<%= user._id %>" title="Xóa người dùng"><i class="fas fa-trash"></i></button>
-                                                            <% } %>
-                                                        <% } %>
-                                                    </td>
-                                                </tr>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <tr>
-                                                <td colspan="4" class="p-3 text-center text-gray-500">Không có người dùng nào phù hợp.</td>
-                                            </tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-                </div>
+            <div id="main-content" class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                 <!-- JavaScript will render the entire page content here -->
             </div>
         </main>
     </div>
 
     <!-- Modals -->
-    <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 hidden modal-overlay"><div class="bg-white rounded-lg shadow-xl w-full max-w-sm modal-container p-6 text-center"><h3 id="modal-title" class="text-xl font-bold mb-4">Xác nhận</h3><p id="modal-message" class="text-gray-600 mb-6">Bạn có chắc không?</p><div class="flex justify-center gap-4"><button id="modal-cancel-btn" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300">Hủy</button><button id="modal-confirm-btn" class="px-6 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">Xác Nhận</button></div></div></div>
-    <div id="food-form-modal" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center p-4 hidden modal-overlay"><div class="bg-white rounded-lg shadow-xl w-full max-w-2xl modal-container max-h-[90vh] overflow-y-auto"><form id="food-form" class="p-8 space-y-6"></form></div></div>
-    <div id="user-form-modal" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center p-4 hidden modal-overlay"><div class="bg-white rounded-lg shadow-xl w-full max-w-lg modal-container max-h-[90vh] overflow-y-auto"><form id="user-form" class="p-8 space-y-6"></form></div></div>
-    <div id="food-detail-modal" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center p-4 hidden modal-overlay"><div id="food-detail-container" class="bg-white rounded-lg shadow-xl w-full max-w-2xl modal-container max-h-[90vh] overflow-y-auto"></div></div>
-    <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center p-4 hidden modal-overlay"><div id="user-detail-container" class="bg-white rounded-lg shadow-xl w-full max-w-md modal-container max-h-[90vh] overflow-y-auto"></div></div>
-
-    <!-- Hidden script tag for CONFIG data -->
-    <script type="application/json" id="initial-config">
-        <%- JSON.stringify(typeof CONFIG !== 'undefined' && CONFIG ? CONFIG : { CATEGORIES: [], REGIONS: [], PROVINCES: [] }) %>
-    </script>
-    <script type="application/json" id="initial-user-data">
-        <%- JSON.stringify(typeof user !== 'undefined' && user ? user : {}) %>
-    </script>
-
+    <div id="confirmation-modal" class="modal-overlay hidden"></div>
+    <div id="form-modal" class="modal-overlay hidden"></div>
+    <div id="detail-modal" class="modal-overlay hidden"></div>
+    
+    <script type="application/json" id="initial-data"><%- JSON.stringify({ CONFIG: locals.CONFIG || {}, user: locals.user || {} }) %></script>
+    
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Get CONFIG and CURRENT_USER from hidden script tags to avoid EJS rendering issues
-    let CONFIG = {};
-    try {
-        const configScript = document.getElementById('initial-config');
-        if (configScript && configScript.textContent) {
-            CONFIG = JSON.parse(configScript.textContent);
-        }
-    } catch (e) {
-        console.error("Error parsing initial config:", e);
-        CONFIG = { CATEGORIES: [], REGIONS: [], PROVINCES: [] };
-    }
-
-    let CURRENT_USER = {};
-    try {
-        const userScript = document.getElementById('initial-user-data');
-        if (userScript && userScript.textContent) {
-            CURRENT_USER = JSON.parse(userScript.textContent);
-        }
-    } catch (e) {
-        console.error("Error parsing initial user data:", e);
-        CURRENT_USER = { role: 'guest' };
-    }
-
-    // Initialize filter variables safely using the parsed CONFIG and URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    let currentFoodStatusFilter = urlParams.get('status') || 'all';
-    let currentFoodCategoryFilter = urlParams.get('category') || 'all';
-    let currentFoodRegionFilter = urlParams.get('region') || 'all';
-    let currentFoodProvinceFilter = urlParams.get('province') || 'all';
-    let currentFoodNameSearch = urlParams.get('q') || '';
-    let currentFoodLocationSearch = urlParams.get('location') || '';
-    let currentUserFilter = urlParams.get('userRole') || 'all';
-
-    // Biến lưu trữ dữ liệu từ server
-    let GLOBAL_FOODS_DATA = [];
-    let GLOBAL_USERS_DATA = [];
-
-    // Các biến Chart.js
-    let categoryChartInstance = null;
+    // --- GLOBAL STATE & CONFIG ---
+    const { CONFIG, user: CURRENT_USER } = JSON.parse(document.getElementById('initial-data').textContent);
+    
     let confirmCallback = null;
+    let categoryChartInstance = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentPage = urlParams.get('page') || 'statistics';
+    
+    let currentFoodStatusFilter = 'all';
+    let currentFoodNameSearch = '';
+    let currentUserRoleFilter = 'all';
+    let currentUserActivityFilter = 'all';
+    let currentUserNameSearch = '';
+    let currentCommentStarsFilter = 'all';
 
-    // Cập nhật thông tin admin trên header
-    const adminUsernameElem = document.getElementById('admin-username');
-    const adminAvatarElem = document.getElementById('admin-avatar');
-    if (adminUsernameElem && CURRENT_USER.username) {
-        adminUsernameElem.textContent = `Chào, ${CURRENT_USER.username}!`;
-    }
-    if (adminAvatarElem && CURRENT_USER.avatar) {
-         adminAvatarElem.src = CURRENT_USER.avatar;
-    }
+    const mainContent = document.getElementById('main-content');
 
-    // --- Toast Notifications ---
+    // --- TEMPLATES & HELPERS ---
+    const templates = {
+        loadingSpinner: () => `<div class="bg-white rounded-2xl shadow-lg p-6 text-center"><div class="spinner mx-auto"></div></div>`,
+        emptyState: (icon, message) => `<div class="bg-white rounded-2xl shadow-lg p-6 text-center text-gray-500 py-12"><i class="fas ${icon} fa-3x mb-4"></i><p>${message}</p></div>`,
+        renderStarRating: (count) => Array.from({length: 5}, (_, i) => `<i class="fa-solid fa-star ${i < count ? 'text-yellow-400' : 'text-gray-300'}"></i>`).join(''),
+    };
+    
+    // --- CORE FUNCTIONS ---
     function showToast(message, type = 'success') {
         const toastContainer = document.getElementById('toast-container');
         const toast = document.createElement('div');
         const icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle' };
         const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
-        toast.className = `flex items-center text-white p-4 rounded-lg shadow-lg ${colors[type]} toast-in max-w-sm`;
+        toast.className = `flex items-center text-white p-4 rounded-lg shadow-lg ${colors[type]} z-[100]`;
         toast.innerHTML = `<i class="fas ${icons[type]} mr-3 text-xl"></i><p class="font-semibold">${message}</p>`;
         toastContainer.appendChild(toast);
-        setTimeout(() => { toast.classList.remove('toast-in'); toast.classList.add('toast-out'); toast.addEventListener('animationend', () => toast.remove()); }, 3500);
+        setTimeout(() => toast.remove(), 3000);
     }
-    
-    // --- Navigation (Sử dụng URL để điều hướng, backend sẽ render EJS tương ứng) ---
-    function navigateTo(pageId) {
-        // Thay vì ẩn/hiện DOM, chúng ta thay đổi URL để backend render trang đúng
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set('page', pageId);
-        window.location.href = currentUrl.toString();
-    }
-
-    // --- Modals ---
     function showConfirmModal(title, message, callback) {
         const modal = document.getElementById('confirmation-modal');
-        modal.querySelector('#modal-title').textContent = title;
-        modal.querySelector('#modal-message').textContent = message;
+        modal.innerHTML = `<div class="modal-container max-w-sm"><div class="p-6 text-center"><h3 class="text-xl font-bold mb-4">${title}</h3><p class="text-gray-600 mb-6">${message}</p><div class="flex justify-center gap-4"><button type="button" class="close-modal-btn px-6 py-2 bg-gray-200 rounded-lg">Hủy</button><button type="button" id="modal-confirm-btn" class="px-6 py-2 bg-red-500 text-white rounded-lg">Xác Nhận</button></div></div></div>`;
         confirmCallback = callback;
         modal.classList.remove('hidden');
     }
-    function hideAllModals() {
-        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-        confirmCallback = null;
-        document.getElementById('food-form').innerHTML = '';
-        document.getElementById('user-form').innerHTML = '';
-        document.getElementById('food-detail-container').innerHTML = '';
-        document.getElementById('user-detail-container').innerHTML = '';
-    }
-    function showFoodFormModal(foodToEdit = null) { renderFoodForm(foodToEdit); document.getElementById('food-form-modal').classList.remove('hidden'); }
-    function showUserFormModal(userToEdit = null) { renderUserForm(userToEdit); document.getElementById('user-form-modal').classList.remove('hidden'); }
-    function showFoodDetailModal(food) { renderFoodDetail(food); document.getElementById('food-detail-modal').classList.remove('hidden'); }
-    function showUserDetailModal(user) { renderUserDetail(user); document.getElementById('user-detail-modal').classList.remove('hidden'); }
-
-
-    // --- Data Fetching Functions ---
+    function hideAllModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden')); }
     async function fetchData(url, method = 'GET', body = null) {
         try {
-            const options = { method: method };
+            const options = { method, headers: {} };
             if (body) {
-                if (!(body instanceof FormData)) {
-                     options.headers = { 'Content-Type': 'application/json' };
-                     options.body = JSON.stringify(body);
-                } else {
+                if (body instanceof FormData) {
                     options.body = body;
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
                 }
             }
             const response = await fetch(url, options);
             const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || `HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(data.message || 'Lỗi không xác định');
             return data;
         } catch (error) {
-            console.error('Lỗi khi fetch data:', error);
-            showToast(error.message || 'Có lỗi xảy ra, vui lòng thử lại.', 'error');
-            return { success: false, message: error.message };
+            showToast(error.message, 'error');
+            return { success: false };
         }
     }
 
-    async function fetchDashboardData() {
-        const data = await fetchData('/admin/api/dashboard-data');
-        if (data.success) {
-            document.getElementById('stats-pending').textContent = data.data.stats.pendingFoods;
-            document.getElementById('pending-count').textContent = data.data.stats.pendingFoods || '';
-            document.getElementById('stats-total-foods').textContent = data.data.stats.totalFoods;
-            document.getElementById('stats-total-users').textContent = data.data.stats.totalUsers;
+    // --- PAGE RENDERERS ---
+    function renderPage(pageId) {
+        const pageTitles = { statistics: 'Thống Kê', 'all-foods': 'Quản Lý Món Ăn', users: 'Quản Lý Người Dùng', comments: 'Quản Lý Bình Luận' };
+        document.getElementById('page-title').textContent = pageTitles[pageId] || 'Trang Quản Trị';
+        document.querySelectorAll('.sidebar-link').forEach(link => link.classList.toggle('active', new URL(link.href).searchParams.get('page') === pageId));
+        mainContent.innerHTML = templates.loadingSpinner();
 
-            renderCategoryChart(data.data.categoryDistribution);
-            renderTopFoods(data.data.topFoods);
-            renderTopUsers(data.data.topUsers);
-        }
-    }
-
-    async function fetchFoods() {
-        const params = new URLSearchParams();
-        if (currentFoodStatusFilter !== 'all') params.append('status', currentFoodStatusFilter);
-        if (currentFoodCategoryFilter !== 'all') params.append('category', currentFoodCategoryFilter);
-        if (currentFoodRegionFilter !== 'all') params.append('region', currentFoodRegionFilter);
-        if (currentFoodProvinceFilter !== 'all') params.append('province', currentFoodProvinceFilter);
-        if (currentFoodNameSearch) params.append('q', currentFoodNameSearch);
-        if (currentFoodLocationSearch) params.append('location', currentFoodLocationSearch);
-
-        const url = `/admin/api/foods?${params.toString()}`;
-        const data = await fetchData(url);
-        if (data.success) {
-            GLOBAL_FOODS_DATA = data.foods;
-            renderAllFoodsList(data.foods);
-        } else {
-            GLOBAL_FOODS_DATA = [];
-            renderAllFoodsList([]);
-        }
-    }
-
-    async function fetchUsers() {
-        const params = new URLSearchParams();
-        if (currentUserFilter !== 'all') params.append('role', currentUserFilter);
-        
-        const url = `/admin/api/users?${params.toString()}`;
-        const data = await fetchData(url);
-        if (data.success) {
-            GLOBAL_USERS_DATA = data.users;
-            renderUsersList(data.users);
-        } else {
-            GLOBAL_USERS_DATA = [];
-            renderUsersList([]);
-        }
-    }
-
-    // --- Page Initializers & Renderers ---
-    function initStatisticsPage() {
-        fetchDashboardData(); // Fetch fresh data for stats page
-    }
-
-    function initAllFoodsPage() { 
-        document.querySelectorAll('#all-foods .filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.statusFilter === currentFoodStatusFilter));
-        const categoryFilter = document.getElementById('food-category-filter');
-        categoryFilter.innerHTML = `<option value="all">Tất cả danh mục</option>` + (CONFIG.CATEGORIES || []).map(c => `<option value="${c}" ${c === currentFoodCategoryFilter ? 'selected' : ''}>${c}</option>`).join('');
-        
-        const regionFilter = document.getElementById('food-region-filter');
-        regionFilter.innerHTML = `<option value="all">Tất cả vùng miền</option>` + (CONFIG.REGIONS || []).map(r => `<option value="${r}" ${r === currentFoodRegionFilter ? 'selected' : ''}>${r}</option>`).join('');
-        
-        updateProvinceFilter();
-        document.getElementById('food-search-by-name').value = currentFoodNameSearch;
-        document.getElementById('food-search-by-location').value = currentFoodLocationSearch;
-
-        fetchFoods(); // Tải dữ liệu món ăn khi vào trang
+        if (pageId === 'statistics') renderStatisticsPage();
+        else if (pageId === 'all-foods') renderFoodsPage();
+        else if (pageId === 'users') renderUsersPage();
+        else if (pageId === 'comments') renderCommentsPage();
     }
     
-    function updateProvinceFilter() {
-        const provinceFilter = document.getElementById('food-province-filter');
-        const provincesInRegion = (CONFIG.PROVINCES || []).filter(p => currentFoodRegionFilter === 'all' || p.region === currentFoodRegionFilter);
-        provinceFilter.innerHTML = `<option value="all">Tất cả tỉnh thành</option>` + provincesInRegion.map(p => `<option value="${p.name}" ${p.name === currentFoodProvinceFilter ? 'selected' : ''}>${p.name}</option>`).join('');
+    async function renderStatisticsPage() {
+        const data = await fetchData('/admin/api/dashboard-data');
+        if (!data.success) { mainContent.innerHTML = templates.emptyState('fa-exclamation-triangle', 'Không thể tải dữ liệu thống kê.'); return; }
+        const stats = data.data;
+        mainContent.innerHTML = `<div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md"><div><p class="text-sm font-medium text-gray-500">Món Ăn Chờ Duyệt</p><p class="text-3xl font-bold">${stats.stats.pendingFoods}</p></div></div>
+                <div class="bg-white p-6 rounded-2xl shadow-md"><div><p class="text-sm font-medium text-gray-500">Tổng Số Món Ăn</p><p class="text-3xl font-bold">${stats.stats.totalFoods}</p></div></div>
+                <div class="bg-white p-6 rounded-2xl shadow-md"><div><p class="text-sm font-medium text-gray-500">Tổng Người Dùng</p><p class="text-3xl font-bold">${stats.stats.totalUsers}</p></div></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-md"><h3 class="font-bold text-lg mb-4">Phân Bố Món Ăn</h3><div class="h-64"><canvas id="category-chart"></canvas></div></div>
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-md"><h3 class="font-bold text-lg mb-4">Top Món Ăn Quan Tâm</h3><ul id="stats-top-foods" class="space-y-3"></ul></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-md"><h3 class="font-bold text-lg mb-4">Top User Tích Cực</h3><ul id="stats-top-users" class="space-y-3"></ul></div>
+                </div>
+            </div>
+        </div>`;
+        renderCategoryChart(stats.categoryDistribution);
+        renderTopList('stats-top-foods', stats.topFoods, item => `<span class="truncate font-medium">${item.name}</span><span class="font-bold text-red-500"><i class="fas fa-star text-yellow-400 mr-1"></i> ${item.avgRating ? item.avgRating.toFixed(1) : '0'} (${item.totalRatings})</span>`);
+        renderTopList('stats-top-users', stats.topUsers, item => `<span class="truncate font-medium">${item.username}</span><span class="font-bold text-red-500"><i class="fas fa-pen-alt text-gray-400 mr-1"></i> ${item.foodCount}</span>`);
     }
 
-    function initUsersPage() { 
-        document.querySelectorAll('#users .user-filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentUserFilter));
-        fetchUsers(); // Tải dữ liệu người dùng khi vào trang
+    function renderFoodsPage() {
+        mainContent.innerHTML = `<div class="bg-white rounded-2xl shadow-lg p-6"><div class="flex flex-col gap-4 mb-4 border-b pb-4"><div class="flex items-center justify-between gap-4"><div id="food-status-filters" class="flex items-center space-x-4"><button class="filter-btn food-status-filter" data-filter-value="all">Tất cả</button><button class="filter-btn food-status-filter" data-filter-value="pending">Chờ duyệt</button><button class="filter-btn food-status-filter" data-filter-value="approved">Đã duyệt</button></div><button id="add-new-food-btn" class="bg-red-500 text-white font-bold px-4 py-2 rounded-lg">Thêm món mới</button></div><div class="relative"><input type="text" id="food-search-input" placeholder="Tìm theo tên món ăn..." class="w-full pl-10 pr-4 py-2 border rounded-lg" value="${currentFoodNameSearch}"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i></div></div><div id="list-container">${templates.loadingSpinner()}</div></div>`;
+        document.querySelector(`#food-status-filters .filter-btn[data-filter-value="${currentFoodStatusFilter}"]`)?.classList.add('active');
+        fetchAndRenderFoods();
     }
 
-    function renderAllFoodsList(foodsToRender) {
-        const container = document.getElementById('all-foods-list-container');
-        if (!foodsToRender || foodsToRender.length === 0) { container.innerHTML = `<div class="text-center text-gray-500 py-12"><i class="fas fa-search fa-3x mb-4"></i><p>Không tìm thấy món ăn nào.</p></div>`; return; }
-        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left table-auto"><thead><tr class="bg-gray-200 text-sm"><th class="p-3 font-semibold">Món Ăn</th><th class="p-3 font-semibold">Danh Mục</th><th class="p-3 font-semibold">Tỉnh/TP</th><th class="p-3 font-semibold text-center">Trạng Thái</th><th class="p-3 font-semibold text-center">Hành Động</th></tr></thead><tbody>${foodsToRender.map(food => { 
-            const statusBadge = food.status === 'approved' ? `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã duyệt</span>` : `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ duyệt</span>`; 
-            const actions = food.status === 'approved' ? 
-                `<button class="edit-food-btn text-blue-500 hover:text-blue-700" data-id="${food._id}" title="Sửa"><i class="fas fa-edit"></i></button><button class="delete-food-btn text-red-500 hover:text-red-700 ml-3" data-id="${food._id}" title="Xóa"><i class="fas fa-trash"></i></button>` : 
-                `<button class="approve-btn text-green-500 hover:text-green-700" data-id="${food._id}" title="Duyệt"><i class="fas fa-check-circle"></i></button><button class="reject-btn text-red-500 hover:text-red-700 ml-3" data-id="${food._id}" title="Từ chối"><i class="fas fa-times-circle"></i></button>`; 
-            
-            // Sử dụng 'displayCategory' từ backend nếu có, hoặc category gốc
-            const displayCategory = food.category === 'Các loại khác' && food.otherCategoryName ? food.otherCategoryName : food.category;
+    function renderUsersPage() {
+        mainContent.innerHTML = `<div class="bg-white rounded-2xl shadow-lg p-6"><div class="flex flex-col gap-4 mb-4 border-b pb-4"><div class="flex flex-wrap items-center justify-between gap-y-4"><div class="flex flex-wrap items-center gap-x-6 gap-y-2"><div id="user-role-filters" class="flex items-center space-x-4"><span class="text-sm font-semibold text-gray-500">Vai trò:</span><button class="filter-btn user-filter-btn" data-filter-type="role" data-filter-value="all">Tất cả</button><button class="filter-btn user-filter-btn" data-filter-type="role" data-filter-value="admin">Admin</button><button class="filter-btn user-filter-btn" data-filter-type="role" data-filter-value="user">User</button></div><div id="user-activity-filters" class="flex items-center space-x-4"><span class="text-sm font-semibold text-gray-500">Hoạt động:</span><button class="filter-btn user-filter-btn" data-filter-type="activity" data-filter-value="all">Tất cả</button><button class="filter-btn user-filter-btn" data-filter-type="activity" data-filter-value="active">Đã hoạt động</button><button class="filter-btn user-filter-btn" data-filter-type="activity" data-filter-value="inactive">Chưa hoạt động</button></div></div><button id="add-new-user-btn" class="sm:ml-auto bg-blue-500 text-white font-bold px-4 py-2 rounded-lg">Thêm người dùng</button></div><div class="relative"><input type="text" id="user-search-input" placeholder="Tìm theo tên hoặc email..." class="w-full pl-10 pr-4 py-2 border rounded-lg" value="${currentUserNameSearch}"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i></div></div><div id="list-container">${templates.loadingSpinner()}</div></div>`;
+        document.querySelector(`#user-role-filters .filter-btn[data-filter-value="${currentUserRoleFilter}"]`)?.classList.add('active');
+        document.querySelector(`#user-activity-filters .filter-btn[data-filter-value="${currentUserActivityFilter}"]`)?.classList.add('active');
+        fetchAndRenderUsers();
+    }
 
-            return `<tr class="border-b hover:bg-gray-50 text-sm clickable-row" data-id="${food._id}" data-type="food"><td class="p-3 font-medium flex items-center"><img src="${food.image.replace('600x400','100x75')}" onerror="this.onerror=null; this.src='https://placehold.co/100x75/E2E8F0/A0AEC0?text=Food';" alt="${food.name}" class="w-16 h-12 object-cover rounded-md mr-4"><div class="flex-grow">${food.name}</div></td><td class="p-3">${displayCategory}</td><td class="p-3">${food.province}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-center text-lg relative z-10">${actions}</td></tr>`; 
-        }).join('')}</tbody></table></div>`;
+    function renderCommentsPage() {
+        mainContent.innerHTML = `<div class="bg-white rounded-2xl shadow-lg p-6"><div class="flex justify-between items-center mb-4 border-b pb-4"><h2 class="text-xl font-bold text-gray-700">Danh Sách Bình Luận</h2><div id="comment-filter-controls" class="flex items-center space-x-4"><button class="filter-btn comment-filter-btn" data-filter-value="all">Tất cả</button><button class="filter-btn comment-filter-btn" data-filter-value="3-5">Tốt</button><button class="filter-btn comment-filter-btn" data-filter-value="1-2">Tệ</button></div></div><div id="list-container">${templates.loadingSpinner()}</div></div>`;
+        document.querySelector(`#comment-filter-controls .filter-btn[data-filter-value="${currentCommentStarsFilter}"]`)?.classList.add('active');
+        fetchAndRenderComments();
+    }
+    
+    // --- DATA FETCHING & LIST RENDERING ---
+    async function fetchAndRenderFoods() {
+        const params = new URLSearchParams({ status: currentFoodStatusFilter, q: currentFoodNameSearch });
+        const data = await fetchData(`/admin/api/foods?${params.toString()}`);
+        const container = document.getElementById('list-container');
+        if (!container) return;
+        if (!data?.success || !data.foods.length) { container.innerHTML = templates.emptyState('fa-utensils', 'Không có món ăn nào.'); return; }
+        renderFoodList(data.foods);
+    }
+    async function fetchAndRenderUsers() {
+        const params = new URLSearchParams({ role: currentUserRoleFilter, activity: currentUserActivityFilter, q: currentUserNameSearch });
+        const data = await fetchData(`/admin/api/users?${params.toString()}`);
+        const container = document.getElementById('list-container');
+        if (!container) return;
+        if (!data?.success || !data.users.length) { container.innerHTML = templates.emptyState('fa-user-slash', 'Không có người dùng nào.'); return; }
+        renderUsersList(data.users);
+    }
+    async function fetchAndRenderComments() {
+        const data = await fetchData(`/admin/api/comments?stars=${currentCommentStarsFilter}`);
+        const container = document.getElementById('list-container');
+        if(!container) return;
+        if (!data?.success || !data.comments.length) { container.innerHTML = templates.emptyState('fa-comment-slash', 'Không có bình luận nào.'); return; }
+        renderCommentList(data.comments);
+    }
+    
+    function renderFoodList(foods) {
+        const container = document.getElementById('list-container');
+        const rows = foods.map(food => {
+            const statusBadge = food.status === 'approved' ? `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã duyệt</span>` : `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chờ duyệt</span>`;
+            const actions = food.status === 'approved'
+                ? `<button class="edit-btn text-blue-500" data-id="${food._id}" data-type="food" title="Sửa"><i class="fas fa-edit"></i></button><button class="delete-btn text-red-500 ml-3" data-id="${food._id}" data-type="food" title="Xóa"><i class="fas fa-trash"></i></button>`
+                : `<button class="approve-btn text-green-500" data-id="${food._id}" title="Duyệt"><i class="fas fa-check-circle"></i></button><button class="reject-btn text-red-500 ml-3" data-id="${food._id}" title="Từ chối"><i class="fas fa-times-circle"></i></button>`;
+            return `<tr class="border-b hover:bg-gray-50 text-sm"><td class="p-3 font-medium"><a href="#" class="flex items-center clickable-item" data-type="food" data-id="${food._id}"><img src="${food.image}" class="w-16 h-12 object-cover rounded-md mr-4" alt="${food.name}"><div class="flex-grow">${food.name}</div></a></td><td class="p-3">${food.province}</td><td class="p-3 text-center">${statusBadge}</td><td class="p-3 text-center"><i class="fas fa-comments text-gray-400 mr-1"></i> ${food.ratings.length}</td><td class="p-3 text-center">${actions}</td></tr>`;
+        }).join('');
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="bg-gray-200 text-sm"><th class="p-3">Món Ăn</th><th class="p-3">Tỉnh/TP</th><th class="p-3 text-center">Trạng Thái</th><th class="p-3 text-center">Đánh giá</th><th class="p-3 text-center">Hành Động</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function renderUsersList(users) {
+        const container = document.getElementById('list-container');
+        const rows = users.map(user => {
+            const isSelf = CURRENT_USER._id === user._id;
+            let actions = `<button class="edit-btn text-blue-500" data-id="${user._id}" data-type="user" title="Sửa"><i class="fas fa-edit"></i></button>`;
+            if (!isSelf && user.role !== 'admin') {
+                actions += `<button class="make-admin-btn text-green-500 ml-3" data-id="${user._id}" title="Cấp quyền Admin"><i class="fas fa-user-shield"></i></button>`;
+            }
+            if (!isSelf) {
+                actions += `<button class="delete-btn text-red-500 ml-3" data-id="${user._id}" data-type="user" title="Xóa"><i class="fas fa-trash"></i></button>`;
+            }
+            return `<tr class="border-b hover:bg-gray-50 text-sm"><td class="p-3"><a href="#" class="flex items-center clickable-item" data-type="user" data-id="${user._id}"><img src="${user.avatar || '/images/avatars/default-avatar.png'}" class="w-10 h-10 rounded-full mr-4"><span class="font-medium">${user.username}</span></a></td><td class="p-3">${user.email || 'N/A'}</td><td class="p-3"><span class="font-semibold ${user.role === 'admin' ? 'text-red-600' : ''}">${user.role}</span></td><td class="p-3 text-center">${actions}</td></tr>`;
+        }).join('');
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="bg-gray-200 text-sm"><th class="p-3">Người dùng</th><th class="p-3">Email</th><th class="p-3">Vai trò</th><th class="p-3 text-center">Hành động</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    function renderCommentList(comments) {
+        const container = document.getElementById('list-container');
+        const rows = comments.map(c => `
+            <tr class="border-b hover:bg-gray-50 text-sm">
+                <td class="p-3 font-medium"><a href="#" class="text-red-600 hover:underline clickable-item" data-type="food" data-id="${c.foodId}">${c.foodName}</a></td>
+                <td class="p-3">${c.userId ? `<a href="#" class="text-blue-600 hover:underline clickable-item" data-type="user" data-id="${c.userId}">${c.username}</a>` : `<span class="text-gray-500">${c.username}</span>`}</td>
+                <td class="p-3 text-center">${templates.renderStarRating(c.stars)}</td>
+                <td class="p-3 text-gray-600">${(c.commentText || '').substring(0,50)}...</td>
+                <td class="p-3 text-center"><button class="delete-btn text-red-500" data-type="comment" data-food-id="${c.foodId}" data-comment-id="${c.commentId}" title="Xóa"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('');
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="bg-gray-200 text-sm"><th class="p-3">Món Ăn</th><th class="p-3">Người Dùng</th><th class="p-3 text-center">Đánh giá</th><th class="p-3">Bình luận</th><th class="p-3 text-center">Hành động</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    
+    function renderFoodForm(foodToEdit = null) {
+        const isEditing = !!foodToEdit;
+        const modal = document.getElementById('form-modal');
+        const options = (CONFIG.CATEGORIES || []).map(c => `<option value="${c}" ${foodToEdit?.category === c ? 'selected' : ''}>${c}</option>`).join('');
+               
+        modal.classList.remove('hidden');
     }
 
     function renderFoodForm(foodToEdit = null) {
         const isEditing = !!foodToEdit;
-        const form = document.getElementById('food-form');
-        form.dataset.editingId = isEditing ? foodToEdit._id : '';
-        // Render otherCategoryName input conditionally
-        const otherCategoryInput = foodToEdit && foodToEdit.category === 'Các loại khác' && foodToEdit.otherCategoryName ? `<input type="text" name="otherCategoryName" placeholder="Tên loại hải sản khác..." class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500 mt-2" value="${foodToEdit.otherCategoryName}">` : '';
-
-        form.innerHTML = `
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">${isEditing ? 'Chỉnh Sửa Món Ăn' : 'Thêm Món Ăn Mới'}</h2>
-                <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Tên món ăn*</label>
-                <input type="text" name="name" required class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500" value="${foodToEdit?.name || ''}">
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Mô tả</label>
-                <textarea name="description" rows="3" class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500">${foodToEdit?.description || ''}</textarea>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="font-semibold text-sm mb-1 block">Loại hải sản*</label>
-                    <select name="category" required class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500">
-                        ${(CONFIG.CATEGORIES || []).map(c => `<option value="${c}" ${foodToEdit?.category === c ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
-                    <div id="other-category-input-container">${otherCategoryInput}</div>
-                </div>
-                <div>
-                    <label class="font-semibold text-sm mb-1 block">Vùng miền*</label>
-                    <select name="region" required class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500">
-                        ${(CONFIG.REGIONS || []).map(r => `<option value="${r}" ${foodToEdit?.region === r ? 'selected' : ''}>${r}</option>`).join('')}
-                    </select>
-                </div>
-            </div>
-            <div class="relative">
-                <label class="font-semibold text-sm mb-1 block">Tỉnh / Thành phố*</label>
-                <input type="text" name="province" required autocomplete="off" class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500" value="${foodToEdit?.province || ''}">
-                <div id="province-suggestions" class="absolute z-20 w-full bg-white border rounded-b-lg shadow-lg max-h-48 overflow-y-auto hidden"></div>
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Gợi ý thử tại (tùy chọn)</label>
-                <input type="text" name="suggestedAt" class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500" value="${foodToEdit?.suggestedAt || ''}">
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Ảnh minh họa*</label>
-                ${isEditing && foodToEdit.image ? `<img src="${foodToEdit.image.replace('600x400','100x75')}" class="w-32 h-auto rounded-md my-2">` : ''}
-                <input type="file" name="image" ${!isEditing ? 'required' : ''} class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-            </div>
-            <div class="flex justify-end gap-4 pt-4">
-                <button type="button" class="close-modal-btn px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300">Hủy</button>
-                <button type="submit" class="px-8 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">${isEditing ? 'Lưu Thay Đổi' : 'Thêm Món Ăn'}</button>
-            </div>
-        `;
-        // Add listener for category change to toggle otherCategoryName input
-        form.querySelector('select[name="category"]').addEventListener('change', (e) => {
-            const otherCategoryInputContainer = document.getElementById('other-category-input-container');
+        const modal = document.getElementById('form-modal');
+        const options = (CONFIG.CATEGORIES || []).map(c => `<option value="${c}" ${foodToEdit?.category === c ? 'selected' : ''}>${c}</option>`).join('');
+        const formHtml = `
+            <div class="modal-container max-w-2xl"><form id="main-form" data-type="food" data-id="${isEditing ? foodToEdit._id : ''}" class="p-8 space-y-4">
+                <div class="flex justify-between items-center"><h2 class="text-2xl font-bold">${isEditing ? 'Chỉnh Sửa' : 'Thêm'} Món Ăn</h2><button type="button" class="close-modal-btn text-2xl">&times;</button></div>
+                <div><label class="font-semibold text-sm">Tên món*</label><input name="name" required class="w-full p-2 rounded-lg border" value="${foodToEdit?.name || ''}"></div>
+                <div><label class="font-semibold text-sm">Mô tả</label><textarea name="description" rows="3" class="w-full p-2 rounded-lg border">${foodToEdit?.description || ''}</textarea></div>
+                <div><label class="font-semibold text-sm">Loại hải sản*</label><select name="category" required class="w-full p-2 rounded-lg border">${options}</select></div>
+                <div id="other-category-container"></div>
+                <div><label class="font-semibold text-sm">Tỉnh/TP*</label><input name="province" required class="w-full p-2 rounded-lg border" value="${foodToEdit?.province || ''}"></div>
+                <div><label class="font-semibold text-sm">Địa điểm gợi ý*</label><input name="suggestedAt" required class="w-full p-2 rounded-lg border" value="${foodToEdit?.suggestedAt || ''}"></div>
+                <div><label class="font-semibold text-sm">Ảnh</label>${isEditing && foodToEdit.image ? `<img src="${foodToEdit.image}" class="w-32 h-auto rounded-md my-2">` : ''}<input type="file" name="image" ${!isEditing ? 'required' : ''}></div>
+                <div class="flex justify-end gap-4 pt-4"><button type="button" class="close-modal-btn px-6 py-2 bg-gray-200 rounded-lg">Hủy</button><button type="submit" class="px-8 py-2 bg-red-500 text-white rounded-lg">${isEditing ? 'Lưu' : 'Thêm'}</button></div>
+            </form></div>`;
+        modal.innerHTML = formHtml;
+        modal.querySelector('select[name="category"]').addEventListener('change', e => {
+            const container = modal.querySelector('#other-category-container');
             if (e.target.value === 'Các loại khác') {
-                otherCategoryInputContainer.innerHTML = `<input type="text" name="otherCategoryName" placeholder="Tên loại hải sản khác..." class="w-full p-3 rounded-lg border bg-gray-50 focus:border-red-500 focus:ring-red-500 mt-2" value="${foodToEdit?.otherCategoryName || ''}">`;
+                container.innerHTML = `<div><label class="font-semibold text-sm">Tên loại khác*</label><input name="otherCategoryName" required class="w-full p-2 rounded-lg border" value=""></div>`;
             } else {
-                otherCategoryInputContainer.innerHTML = '';
+                container.innerHTML = '';
             }
         });
+        modal.classList.remove('hidden');
     }
+    function renderFoodDetailModal(food) {
+        const detailModal = document.getElementById('detail-modal');
+        const commentsHtml = food.ratings.length > 0 ? food.ratings.map(rating => {
+            const commenterName = rating.userId?.username || 'Người dùng đã bị xóa';
+            const commenterLink = rating.userId ? `<a href="#" class="font-semibold text-gray-800 hover:underline clickable-item" data-type="user" data-id="${rating.userId._id}">${commenterName}</a>` : `<span class="font-semibold text-gray-500">${commenterName}</span>`;
+            return `<div class="p-3 bg-gray-50 rounded-lg flex items-start space-x-3"><div class="flex-grow"><div class="flex justify-between items-center">${commenterLink}<span class="text-xs text-gray-500">${new Date(rating.createdAt).toLocaleDateString('vi-VN')}</span></div><div class="text-sm my-1">${templates.renderStarRating(rating.stars)}</div><p class="text-sm text-gray-700">${rating.comment || ''}</p></div><button class="delete-btn text-gray-400 hover:text-red-500" data-type="comment" data-food-id="${food._id}" data-comment-id="${rating._id}" title="Xóa bình luận"><i class="fas fa-times-circle"></i></button></div>`;
+        }).join('') : '<p class="text-center text-gray-500 py-4">Chưa có đánh giá nào.</p>';
 
-    function renderUsersList(usersToRender) {
-        const container = document.getElementById('users-list-container');
-        if (!usersToRender || usersToRender.length === 0) { container.innerHTML = `<p class="text-center text-gray-500 py-12">Không có người dùng nào phù hợp.</p>`; return; }
-        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left"><thead><tr class="bg-gray-200"><th class="p-3">Người dùng</th><th class="p-3">Email</th><th class="p-3">Vai trò</th><th class="p-3 text-center">Hành Động</th></tr></thead><tbody>${usersToRender.map(user => `<tr class="border-b hover:bg-gray-50 clickable-row" data-id="${user._id}" data-type="user"><td class="p-3 flex items-center"><img src="${user.avatar || '/images/avatars/default-avatar.png'}" class="w-10 h-10 rounded-full mr-4"><span class="font-medium">${user.username}</span></td><td class="p-3">${user.email || 'N/A'}</td><td class="p-3"><span class="font-semibold ${user.role === 'admin' ? 'text-red-600' : 'text-gray-600'}">${user.role}</span></td><td class="p-3 text-center relative z-10">
-                                    ${user.role !== 'admin' || (CURRENT_USER._id && user._id && CURRENT_USER._id.toString() === user._id.toString()) ? // Allow admin to edit their own account
-                                        `
-                                        <button class="edit-user-btn text-blue-500 hover:text-blue-700 mr-4" data-id="${user._id}" title="Sửa"><i class="fas fa-edit"></i></button>
-                                        ${user.role !== 'admin' ? // Only show make-admin and delete for non-admins
-                                            `<button class="make-admin-btn text-green-500 hover:text-green-700 mr-4" data-id="${user._id}" title="Cấp quyền Admin"><i class="fas fa-user-shield"></i></button>
-                                            <button class="delete-user-btn text-red-500 hover:text-red-700" data-id="${user._id}" title="Xóa người dùng"><i class="fas fa-trash"></i></button>` : ''
-                                        }
-                                        ` : ''
-                                    }
-                                </td></tr>`).join('')}</tbody></table></div>`;
+        detailModal.innerHTML = `<div class="modal-container max-w-3xl"><div class="p-6 overflow-y-auto"><div class="flex justify-between items-start mb-4"><h2 class="text-3xl font-bold text-gray-800">${food.name}</h2><button class="close-modal-btn text-2xl">&times;</button></div><img src="${food.image}" class="w-full h-64 object-cover rounded-lg mb-4"><p class="text-gray-600 mb-6">${food.description || ''}</p><div class="mt-6"><h3 class="text-2xl font-bold mb-4 border-t pt-4">Đánh Giá (${food.ratings.length})</h3><div class="space-y-4 max-h-64 overflow-y-auto pr-2">${commentsHtml}</div></div></div></div>`;
+        detailModal.classList.remove('hidden');
     }
+    function renderUserDetailModal(details) {
+        const { user, postedFoods, comments } = details;
+        const detailModal = document.getElementById('detail-modal');
+        const postedFoodsHtml = postedFoods.length > 0 ? postedFoods.map(food => `<li><a href="#" class="text-sm hover:underline clickable-item" data-type="food" data-id="${food._id}">${food.name}</a></li>`).join('') : `<li class="text-sm text-gray-500">Chưa đăng món nào.</li>`;
+        const commentsHtml = comments.length > 0 ? comments.map(c => `<li class="p-2 bg-gray-50 rounded-md"><a href="#" class="font-bold hover:underline clickable-item" data-type="food" data-id="${c.foodId}">${c.foodName}</a>: <span class="text-gray-600">"${c.comment}"</span></li>`).join('') : `<li class="text-sm text-gray-500">Chưa có bình luận nào.</li>`;
 
-    function renderUserForm(userToEdit = null) {
-        const isEditing = !!userToEdit;
-        const form = document.getElementById('user-form');
-        form.dataset.editingId = isEditing ? userToEdit._id : '';
-        form.innerHTML = `
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold">${isEditing ? 'Chỉnh Sửa Người Dùng' : 'Thêm Người Dùng Mới'}</h2>
-                <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Tên người dùng*</label>
-                <input type="text" name="username" required class="w-full p-3 rounded-lg border bg-gray-50 focus:border-blue-500 focus:ring-blue-500" value="${userToEdit?.username || ''}">
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Mật khẩu</label>
-                <input type="password" name="password" ${isEditing ? '' : 'required'} class="w-full p-3 rounded-lg border bg-gray-50 focus:border-blue-500 focus:ring-blue-500" placeholder="${isEditing ? 'Bỏ trống nếu không đổi' : ''}">
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Email (tùy chọn)</label>
-                <input type="email" name="email" class="w-full p-3 rounded-lg border bg-gray-50 focus:border-blue-500 focus:ring-blue-500" value="${userToEdit?.email || ''}">
-            </div>
-            <div>
-                <label class="font-semibold text-sm mb-1 block">Vai trò*</label>
-                <select name="role" required class="w-full p-3 rounded-lg border bg-gray-50 focus:border-blue-500 focus:ring-blue-500">
-                    <option value="user" ${userToEdit?.role === 'user' ? 'selected' : ''}>User</option>
-                    <option value="admin" ${userToEdit?.role === 'admin' ? 'selected' : ''}>Admin</option>
-                </select>
-            </div>
-            <div class="flex justify-end gap-4 pt-4">
-                <button type="button" class="close-modal-btn px-6 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300">Hủy</button>
-                <button type="submit" class="px-8 py-3 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600">${isEditing ? 'Lưu Thay Đổi' : 'Thêm Người Dùng'}</button>
-            </div>
-        `;
+        detailModal.innerHTML = `<div class="modal-container max-w-xl"><div class="p-6 overflow-y-auto"><div class="flex justify-end"><button class="close-modal-btn text-2xl">&times;</button></div><div class="text-center"><img src="${user.avatar || '/images/avatars/default-avatar.png'}" class="w-24 h-24 rounded-full mx-auto mb-4"><h2 class="text-2xl font-bold">${user.username}</h2><p class="text-gray-500">${user.email || ''}</p></div><div class="mt-6 space-y-4"><div><h4 class="font-bold border-b pb-1 mb-2">Các món đã đăng (${postedFoods.length})</h4><ul class="space-y-1 list-disc list-inside">${postedFoodsHtml}</ul></div><div><h4 class="font-bold border-b pb-1 mb-2">Các bình luận (${comments.length})</h4><ul class="space-y-2 max-h-48 overflow-y-auto pr-2">${commentsHtml}</ul></div></div></div></div>`;
+        detailModal.classList.remove('hidden');
     }
     
-    function renderUserDetail(user) {
-        const container = document.getElementById('user-detail-container');
-        container.innerHTML = `
-            <div class="p-6 text-center">
-                <div class="flex justify-end">
-                    <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                </div>
-                <img src="${user.avatar}" alt="${user.username}" class="w-32 h-32 object-cover rounded-full mx-auto mb-4 border-4 border-blue-200">
-                <h2 class="text-2xl font-bold text-gray-800">${user.username}</h2>
-                <p class="text-gray-500">${user.email || 'Không có email'}</p>
-                <div class="mt-4">
-                    <span class="px-3 py-1 text-sm font-semibold rounded-full ${user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}">${user.role}</span>
-                </div>
-                <div class="text-center mt-6">
-                    <button type="button" class="close-modal-btn px-6 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600">Đóng</button>
-                </div>
-            </div>
-        `;
+    function renderCategoryChart(data) {
+        const labels = data.map(item => item._id);
+        const values = data.map(item => item.count);
+        const ctx = document.getElementById('category-chart')?.getContext('2d');
+        if (!ctx) return;
+        if (categoryChartInstance) categoryChartInstance.destroy();
+        if (labels.length === 0) { ctx.canvas.parentNode.innerHTML = '<p class="text-center text-gray-500">Chưa có dữ liệu.</p>'; return; }
+        categoryChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: labels, datasets: [{ data: values, backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981'], hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } } });
+    }
+    function renderTopList(elementId, data, templateFn) {
+        const container = document.getElementById(elementId);
+        if (!data || !data.length) { container.innerHTML = '<li class="text-gray-500">Chưa có dữ liệu.</li>'; return; }
+        container.innerHTML = data.map(item => `<li class="flex items-center justify-between text-sm">${templateFn(item)}</li>`).join('');
     }
 
-    function renderFoodDetail(food) {
-        const container = document.getElementById('food-detail-container');
-        // Tìm người tạo và người dùng đánh giá trong GLOBAL_USERS_DATA
-        const creator = GLOBAL_USERS_DATA.find(u => u._id === food.createdBy);
-        
-        // Tính toán trung bình rating từ mảng 'ratings'
-        const totalRating = food.ratings.reduce((sum, r) => sum + r.stars, 0);
-        const avgRating = food.ratings.length > 0 ? (totalRating / food.ratings.length).toFixed(1) : 'N/A';
-        const starHtml = (rating) => {
-            let stars = '';
-            for (let i = 1; i <= 5; i++) {
-                stars += `<i class="fas fa-star ${i <= rating ? 'text-yellow-400' : 'text-gray-300'}"></i>`;
-            }
-            return stars;
-        };
-
-        container.innerHTML = `
-            <div class="p-6">
-                <div class="flex justify-between items-start">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-4">${food.name}</h2>
-                    <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                </div>
-                <img src="${food.image}" onerror="this.onerror=null; this.src='https://placehold.co/600x400/E2E8F0/A0AEC0?text=Food';" alt="${food.name}" class="w-full h-64 object-cover rounded-lg mb-4">
-                <p class="text-gray-600 mb-6">${food.description}</p>
-                
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm mb-6">
-                    <div class="bg-gray-100 p-3 rounded-lg"><p class="font-semibold text-gray-500">Danh mục</p><p class="text-gray-800 font-bold">${food.category === 'Các loại khác' && food.otherCategoryName ? food.otherCategoryName : food.category}</p></div>
-                    <div class="bg-gray-100 p-3 rounded-lg"><p class="font-semibold text-gray-500">Vùng miền</p><p class="text-gray-800 font-bold">${food.region}</p></div>
-                    <div class="bg-gray-100 p-3 rounded-lg"><p class="font-semibold text-gray-500">Tỉnh/Thành phố</p><p class="text-gray-800 font-bold">${food.province}</p></div>
-                    <div class="bg-gray-100 p-3 rounded-lg col-span-2 sm:col-span-3"><p class="font-semibold text-gray-500">Gợi ý thử tại</p><p class="text-gray-800 font-bold">${food.suggestedAt || 'Chưa có'}</p></div>
-                    <div class="bg-gray-100 p-3 rounded-lg"><p class="font-semibold text-gray-500">Người đăng</p><p class="text-gray-800 font-bold">${creator?.username || 'N/A'}</p></div>
-                    <div class="bg-gray-100 p-3 rounded-lg"><p class="font-semibold text-gray-500">Ngày đăng</p><p class="text-gray-800 font-bold">${new Date(food.createdAt).toLocaleDateString('vi-VN')}</p></div>
-                </div>
-
-                <!-- Review and Comment Section -->
-                <h3 class="text-2xl font-bold text-gray-800 mb-4 border-t pt-6">Đánh Giá & Bình Luận</h3>
-                
-                <!-- Average Rating Display -->
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="text-xl font-bold text-gray-700">${avgRating}</span>
-                    <div class="star-rating text-xl">
-                        ${starHtml(Math.round(avgRating))}
-                    </div>
-                    <span class="text-gray-500">(${food.ratings.length} đánh giá)</span>
-                </div>
-
-                <!-- Existing Comments List -->
-                <div id="comments-list" class="space-y-4">
-                    ${food.ratings.length > 0 ? food.ratings.map(rating => {
-                        // Tìm người dùng cho đánh giá
-                        const reviewUser = GLOBAL_USERS_DATA.find(u => u._id === rating.userId);
-                        return `
-                            <div class="bg-gray-100 p-4 rounded-lg shadow-sm flex items-start space-x-4">
-                                <img src="${reviewUser?.avatar || 'https://i.pravatar.cc/50?u=anon'}" alt="${reviewUser?.username || 'Anonymous'}" class="w-10 h-10 rounded-full object-cover flex-shrink-0">
-                                <div class="flex-grow">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <p class="font-semibold text-gray-800">${reviewUser?.username || 'N/A'}</p>
-                                        <span class="text-sm text-gray-500">${new Date(rating.createdAt).toLocaleDateString('vi-VN')}</span>
-                                    </div>
-                                    <div class="star-rating text-sm mb-2">
-                                        ${starHtml(rating.stars)}
-                                    </div>
-                                    <p class="text-gray-700">${rating.comment || 'Không có bình luận'}</p>
-                                </div>
-                                <!-- Admin can delete ratings/comments -->
-                                ${CURRENT_USER.role === 'admin' ? `<button class="delete-comment-btn text-red-500 hover:text-red-700 text-lg ml-auto" data-food-id="${food._id}" data-comment-id="${rating._id}" title="Xóa đánh giá/bình luận"><i class="fas fa-times-circle"></i></button>` : ''}
-                            </div>
-                        `;
-                    }).join('') : '<p class="text-center text-gray-500 py-4">Chưa có đánh giá/bình luận nào cho món ăn này.</p>'}
-                </div>
-
-                <div class="text-right mt-6">
-                    <button type="button" class="close-modal-btn px-6 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600">Đóng</button>
-                </div>
-            </div>
-        `;
-    }
-    
-    async function deleteComment(foodId, commentId) {
-        const result = await fetchData(`/admin/foods/${foodId}/comments/${commentId}`, 'DELETE');
-        if (result.success) {
-            showToast(result.message);
-            // Sau khi xóa, lấy lại chi tiết món ăn để cập nhật modal
-            const foodData = await fetchData(`/admin/api/foods/${foodId}`); // Cần một API để lấy food theo ID
-            if (foodData.success) {
-                const updatedFood = foodData.food; // Giả sử API trả về { success: true, food: ... }
-                renderFoodDetail(updatedFood); // Re-render modal với dữ liệu mới
-            } else {
-                hideAllModals(); // Đóng modal nếu không thể tải lại dữ liệu
-                showToast('Lỗi khi tải lại thông tin món ăn sau khi xóa bình luận.', 'error');
-            }
-        } else {
-            showToast(result.message, 'error');
-        }
-    }
-
-
-    // --- Chart Renderers ---
-    function renderCategoryChart(categoryDistributionData) {
-        const labels = categoryDistributionData.map(item => item._id);
-        const data = categoryDistributionData.map(item => item.count);
-
-        const chartContainer = document.getElementById('category-chart');
-        // Clear previous chart if exists and data is empty, or if recreating
-        if (categoryChartInstance) {
-            categoryChartInstance.destroy();
-        }
-
-        // Add a placeholder if there's no data
-        if (!labels || labels.length === 0) {
-            chartContainer.style.display = 'none'; // Hide canvas
-            const noDataMessage = document.createElement('p');
-            noDataMessage.className = 'text-gray-500 text-center py-4';
-            noDataMessage.textContent = 'Chưa có dữ liệu món ăn đã duyệt để phân tích danh mục.';
-            // Insert before canvas or replace canvas parent content
-            if (chartContainer.parentNode) {
-                chartContainer.parentNode.insertBefore(noDataMessage, chartContainer);
-            }
-            return;
-        } else {
-            chartContainer.style.display = 'block'; // Ensure canvas is visible
-            // Remove any previous no-data message
-            const existingNoDataMessage = chartContainer.parentNode.querySelector('.text-gray-500.text-center');
-            if (existingNoDataMessage) {
-                existingNoDataMessage.remove();
-            }
-        }
-        
-        categoryChartInstance = new Chart(chartContainer.getContext('2d'), { 
-            type: 'doughnut', 
-            data: { 
-                labels: labels, 
-                datasets: [{ 
-                    data: data, 
-                    backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef'], 
-                    hoverOffset: 4 
-                }] 
-            }, 
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { 
-                        position: 'bottom', 
-                        labels: { boxWidth: 12, font: { size: 11 } } 
-                    } 
-                } 
-            } 
-        });
-    }
-
-    function renderTopFoods(topFoodsData) {
-        const container = document.getElementById('stats-top-foods');
-        if (!topFoodsData || topFoodsData.length === 0) {
-            container.innerHTML = '<li class="text-gray-500">Chưa có món ăn nào được đánh giá.</li>';
-            return;
-        }
-        container.innerHTML = topFoodsData.map(food => `
-            <li class="flex items-center justify-between text-sm">
-                <span class="truncate font-medium">${food.name}</span>
-                <span class="font-bold text-red-500"><i class="fas fa-star text-yellow-400 mr-1"></i> ${food.avgRating ? food.avgRating.toFixed(1) : '0'} (${food.totalRatings})</span>
-            </li>
-        `).join('');
-    }
-
-    function renderTopUsers(topUsersData) {
-        const container = document.getElementById('stats-top-users');
-        if (!topUsersData || topUsersData.length === 0) {
-            container.innerHTML = '<li class="text-gray-500">Chưa có người dùng nào đăng món ăn.</li>';
-            return;
-        }
-        container.innerHTML = topUsersData.map(item => `
-            <li class="flex items-center justify-between text-sm">
-                <span class="truncate font-medium">${item.username || 'N/A'}</span>
-                <span class="font-bold text-red-500"><i class="fas fa-pen-alt text-gray-400 mr-1"></i> ${item.foodCount}</span>
-            </li>
-        `).join('');
-    }
-
-
-    // --- EVENT LISTENERS ---
-    document.body.addEventListener('click', async e => {
+    // --- EVENT HANDLER ---
+    document.body.addEventListener('click', async (e) => {
         const target = e.target;
-        // Xử lý navigate bằng cách điều hướng lại trang (để EJS render lại)
-        if (target.closest('.sidebar-link')) { 
-            e.preventDefault(); 
-            window.location.href = target.closest('.sidebar-link').href;
-            return;
+        
+        if (target.closest('.close-modal-btn') || (target.matches('.modal-overlay') && !target.closest('.modal-container'))) { hideAllModals(); return; }
+        if (target.id === 'modal-confirm-btn' && confirmCallback) { hideAllModals(); confirmCallback(); return; }
+        
+        const sidebarLink = target.closest('.sidebar-link');
+        if (sidebarLink) {
+            e.preventDefault();
+            currentPage = new URL(sidebarLink.href).searchParams.get('page');
+            window.history.pushState({page: currentPage}, '', sidebarLink.href);
+            renderPage(currentPage);
         }
 
-        const actionBtn = target.closest('.approve-btn, .reject-btn, .delete-food-btn, .edit-food-btn, .make-admin-btn, .delete-user-btn, .edit-user-btn, .delete-comment-btn');
-        if (actionBtn) {
-            e.stopPropagation(); // Ngăn chặn event nổi bọt lên clickable-row
-            const id = actionBtn.dataset.id;
-            const foodId = actionBtn.dataset.foodId; 
-            const commentId = actionBtn.dataset.commentId; 
+        const filterBtn = target.closest('.filter-btn');
+        if(filterBtn){
+            if (filterBtn.matches('.food-status-filter')) { currentFoodStatusFilter = filterBtn.dataset.filterValue; renderFoodsPage(); }
+            else if (filterBtn.matches('.user-filter-btn')) {
+                const { filterType, filterValue } = filterBtn.dataset;
+                if (filterType === 'role') currentUserRoleFilter = filterValue;
+                else if (filterType === 'activity') currentUserActivityFilter = filterValue;
+                renderUsersPage();
+            }
+            else if (filterBtn.matches('.comment-filter-btn')) { currentCommentStarsFilter = filterBtn.dataset.filterValue; renderCommentsPage(); }
+        }
 
-            if (actionBtn.matches('.approve-btn')) { 
-                showConfirmModal('Duyệt Món Ăn', 'Bạn chắc chắn duyệt món ăn này?', async () => { 
-                    const result = await fetchData(`/admin/foods/${id}/approve`, 'POST');
-                    if (result.success) { showToast(result.message); }
-                    hideAllModals(); await fetchFoods(); await fetchDashboardData(); // Cập nhật lại dữ liệu
-                }); 
-            } 
-            else if (actionBtn.matches('.reject-btn')) { 
-                showConfirmModal('Từ Chối Món Ăn', 'Hành động này sẽ xóa vĩnh viễn món ăn chờ duyệt. Bạn chắc chứ?', async () => { 
-                    const result = await fetchData(`/admin/foods/${id}/reject`, 'POST');
-                    if (result.success) { showToast(result.message, 'info'); }
-                    hideAllModals(); await fetchFoods(); await fetchDashboardData(); 
-                }); 
-            } 
-            else if (actionBtn.matches('.delete-food-btn')) { 
-                showConfirmModal('Xóa Món Ăn', 'Hành động này sẽ xóa vĩnh viễn món ăn đã duyệt. Bạn chắc chứ?', async () => { 
-                    const result = await fetchData(`/admin/foods/${id}`, 'DELETE');
-                    if (result.success) { showToast(result.message, 'info'); }
-                    hideAllModals(); await fetchFoods(); await fetchDashboardData(); 
-                }); 
-            } 
-            else if (actionBtn.matches('.edit-food-btn')) { 
-                // Để sửa, cần fetch chi tiết món ăn từ API
-                const foodDetail = await fetchData(`/admin/api/foods/${id}`); // Cần API get food by ID
-                if (foodDetail.success) { showFoodFormModal(foodDetail.food); }
-                else { showToast('Không tìm thấy món ăn để sửa!', 'error'); }
+        const clickableItem = target.closest('.clickable-item');
+        if(clickableItem){
+            e.preventDefault();
+            const { type, id } = clickableItem.dataset;
+            if(!id) return;
+            
+            const detailModal = document.getElementById('detail-modal');
+            detailModal.innerHTML = `<div class="modal-container max-w-3xl">${templates.loadingSpinner()}</div>`;
+            detailModal.classList.remove('hidden');
+
+            if (type === 'food') {
+                const data = await fetchData(`/admin/api/foods/${id}`);
+                if(data.success) renderFoodDetailModal(data.food);
+            } else if (type === 'user') {
+                const data = await fetchData(`/admin/api/users/${id}/details`);
+                if(data.success) renderUserDetailModal(data.details);
             }
-            else if (actionBtn.matches('.edit-user-btn')) { 
-                const userDetail = await fetchData(`/admin/api/users/${id}`); // Cần API get user by ID
-                if (userDetail.success) { showUserFormModal(userDetail.user); }
-                else { showToast('Không tìm thấy người dùng để sửa!', 'error'); }
-            }
-            else if (actionBtn.matches('.make-admin-btn')) { 
-                showConfirmModal('Cấp Quyền Admin', 'Bạn chắc chắn muốn cấp quyền Admin cho người dùng này?', async () => { 
-                    const result = await fetchData(`/admin/users/${id}/make-admin`, 'POST');
-                    if (result.success) { showToast(result.message); }
-                    hideAllModals(); await fetchUsers(); await fetchDashboardData(); 
-                }); 
-            } 
-            else if (actionBtn.matches('.delete-user-btn')) { 
-                showConfirmModal('Xóa Người Dùng', 'Hành động này sẽ xóa vĩnh viễn người dùng. Bạn chắc chứ?', async () => { 
-                    const result = await fetchData(`/admin/users/${id}`, 'DELETE');
-                    if (result.success) { showToast(result.message, 'info'); }
-                    hideAllModals(); await fetchUsers(); await fetchDashboardData(); 
-                }); 
-            }
-            else if (actionBtn.matches('.delete-comment-btn')) {
-                showConfirmModal('Xóa Bình Luận', 'Bạn chắc chắn muốn xóa bình luận này?', async () => {
-                    await deleteComment(foodId, commentId);
-                });
-            }
-            return;
         }
         
-        const clickableRow = target.closest('.clickable-row');
-        if (clickableRow) {
-            const id = clickableRow.dataset.id;
-            const type = clickableRow.dataset.type;
-            if (type === 'food') { 
-                const food = GLOBAL_FOODS_DATA.find(f => f._id === id); 
-                if (food) { showFoodDetailModal(food); }
+        const actionBtn = target.closest('button:not(.filter-btn):not(.close-modal-btn)');
+        if(actionBtn){
+             const id = actionBtn.closest('[data-id]')?.dataset.id;
+             const type = actionBtn.dataset.type;
+
+            if (actionBtn.id === 'add-new-food-btn') { renderFoodForm(); return; }
+            if (actionBtn.id === 'add-new-user-btn') { renderUserForm(); return; }
+
+            if (actionBtn.matches('.edit-btn')) {
+                const data = await fetchData(`/admin/api/${type}s/${id}`);
+                if (data.success) type === 'food' ? renderFoodForm(data.food) : renderUserForm(data.user);
+            } else if (actionBtn.matches('.delete-btn')) {
+                const { foodId, commentId } = actionBtn.dataset;
+                if (type === 'comment') {
+                    showConfirmModal('Xóa Bình Luận', 'Bạn chắc chắn muốn xóa bình luận này?', () => fetchData(`/admin/foods/${foodId}/comments/${commentId}`, 'DELETE').then(r => r.success && (currentPage === 'comments' ? fetchAndRenderComments() : document.querySelector(`.clickable-item[data-id="${foodId}"]`).click())));
+                } else {
+                    const entity = type === 'food' ? 'món ăn' : 'người dùng';
+                    showConfirmModal(`Xóa ${entity}`, `Hành động này sẽ xóa vĩnh viễn ${entity}.`, () => fetchData(`/admin/${type}s/${id}`, 'DELETE').then(r => r.success && (type === 'food' ? renderFoodsPage() : renderUsersPage())));
+                }
+            } else if (actionBtn.matches('.make-admin-btn')) {
+                showConfirmModal('Cấp Quyền Admin', 'Bạn có muốn cấp quyền Admin cho người dùng này?', () => fetchData(`/admin/users/${id}/make-admin`, 'POST').then(r => r.success && renderUsersPage()));
+            } else if (actionBtn.matches('.approve-btn')) {
+                showConfirmModal('Duyệt Món Ăn', 'Bạn chắc chắn duyệt món ăn này?', () => fetchData(`/admin/foods/${id}/approve`, 'POST').then(r => r.success && renderFoodsPage()));
+            } else if (actionBtn.matches('.reject-btn')) {
+                showConfirmModal('Từ Chối Món Ăn', 'Hành động này sẽ xóa món ăn. Bạn chắc chứ?', () => fetchData(`/admin/foods/${id}/reject`, 'POST').then(r => r.success && renderFoodsPage()));
             }
-            else if (type === 'user') { 
-                const user = GLOBAL_USERS_DATA.find(u => u._id === id); 
-                if (user) { showUserDetailModal(user); }
-            }
-            return;
         }
-
-        if (target.closest('[data-status-filter]')) { currentFoodStatusFilter = target.closest('[data-status-filter]').dataset.statusFilter; fetchFoods(); }
-        if (target.closest('#users .user-filter-btn')) { currentUserFilter = target.closest('#users .user-filter-btn').dataset.filter; fetchUsers(); }
-        if(target.closest('#add-new-food-btn')) { showFoodFormModal(null); }
-        if(target.closest('#add-new-user-btn')) { showUserFormModal(null); }
-        
-        if(target.id === 'modal-confirm-btn' && confirmCallback) { 
-            confirmCallback();
-        }
-        // Đóng modal khi click ra ngoài hoặc nút đóng
-        if(target.closest('.modal-overlay') && !target.closest('.modal-container')) hideAllModals();
-        if(target.closest('.close-modal-btn, #modal-cancel-btn')) hideAllModals();
     });
 
-    // Event listeners cho các filter và search inputs
-    document.getElementById('all-foods').addEventListener('input', e => {
-        if(e.target.id === 'food-search-by-name') { currentFoodNameSearch = e.target.value; fetchFoods(); }
-        if(e.target.id === 'food-search-by-location') { currentFoodLocationSearch = e.target.value; fetchFoods(); }
-    });
-
-    document.getElementById('all-foods').addEventListener('change', e => {
-        if(e.target.id === 'food-category-filter') { currentFoodCategoryFilter = e.target.value; fetchFoods(); }
-        if(e.target.id === 'food-region-filter') { currentFoodRegionFilter = e.target.value; currentFoodProvinceFilter = 'all'; updateProvinceFilter(); fetchFoods(); }
-        if(e.target.id === 'food-province-filter') { currentFoodProvinceFilter = e.target.value; fetchFoods(); }
-    });
-
-    document.getElementById('food-form').addEventListener('submit', async e => {
+    document.body.addEventListener('submit', async (e) => {
+        if (e.target.id !== 'main-form') return;
         e.preventDefault();
-        const form = e.target; 
-        const editingId = form.dataset.editingId;
+        const form = e.target;
+        const { type, id } = form.dataset;
+        const isFood = type === 'food';
         const formData = new FormData(form);
-
-        // Xử lý trường otherCategoryName
-        if (formData.get('category') !== 'Các loại khác') {
-            formData.delete('otherCategoryName'); // Đảm bảo không gửi nếu không chọn "Các loại khác"
+        const url = `/admin/${type}s/${id ? `edit/${id}` : 'add'}`;
+        const result = await fetchData(url, 'POST', isFood ? formData : Object.fromEntries(formData));
+        if (result.success) {
+            hideAllModals();
+            showToast(result.message);
+            if (isFood) renderFoodsPage(); else renderUsersPage();
         }
-
-        // Gửi request
-        const url = editingId ? `/admin/foods/edit/${editingId}` : '/admin/foods/add';
-        const method = 'POST'; // Cả thêm và sửa đều dùng POST vì có Multer file upload
-
-        const result = await fetchData(url, method, formData);
-        if (result.success) { 
-            showToast(result.message); 
-        }
-        hideAllModals(); 
-        await fetchFoods(); 
-        await fetchDashboardData(); 
     });
     
-    document.getElementById('user-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const form = e.target; 
-        const editingId = form.dataset.editingId;
-        const formData = new FormData(form);
-        const userData = Object.fromEntries(formData.entries());
+    const debounce = (func, delay) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
 
-        // Gửi request
-        const url = editingId ? `/admin/users/edit/${editingId}` : '/admin/users/add';
-        const method = 'POST'; 
-
-        const result = await fetchData(url, method, userData);
-        if (result.success) { 
-            showToast(result.message); 
+    const handleSearchInput = debounce((e) => {
+        if (e.target.id === 'food-search-input') {
+            currentFoodNameSearch = e.target.value;
+            fetchAndRenderFoods();
+        } else if (e.target.id === 'user-search-input') {
+            currentUserNameSearch = e.target.value;
+            fetchAndRenderUsers();
         }
-        hideAllModals(); 
-        await fetchUsers(); 
-        await fetchDashboardData(); 
-    });
-    
-    // Autocomplete for province input
-    document.getElementById('food-form-modal').addEventListener('input', e => {
-        if (e.target.name === 'province') {
-            const input = e.target.value.toLowerCase();
-            const suggestionsContainer = document.getElementById('province-suggestions');
-            if (!input) { suggestionsContainer.innerHTML = ''; suggestionsContainer.classList.add('hidden'); return; }
-            // Đảm bảo CONFIG.PROVINCES là một mảng trước khi lọc
-            const filteredProvinces = (CONFIG.PROVINCES || []).filter(p => p.name.toLowerCase().includes(input));
-            if (filteredProvinces.length > 0) {
-                suggestionsContainer.innerHTML = filteredProvinces.map(p => `<div class="p-2 hover:bg-gray-100 cursor-pointer">${p.name}</div>`).join('');
-                suggestionsContainer.classList.remove('hidden');
-            } else { suggestionsContainer.classList.add('hidden'); }
-            const exactMatch = (CONFIG.PROVINCES || []).find(p => p.name.toLowerCase() === input);
-            if (exactMatch) document.querySelector('#food-form [name="region"]').value = exactMatch.region;
+    }, 400);
+
+    mainContent.addEventListener('input', (e) => {
+        if (e.target.matches('#food-search-input, #user-search-input')) {
+            handleSearchInput(e);
         }
     });
 
-    document.getElementById('food-form-modal').addEventListener('click', e => {
-        const suggestion = e.target.closest('#province-suggestions > div');
-        if (suggestion) {
-            const provinceInput = document.querySelector('#food-form [name="province"]');
-            const regionSelect = document.querySelector('#food-form [name="region"]');
-            provinceInput.value = suggestion.textContent;
-            document.getElementById('province-suggestions').classList.add('hidden');
-            // Đảm bảo CONFIG.PROVINCES là một mảng trước khi tìm
-            const provinceData = (CONFIG.PROVINCES || []).find(p => p.name === provinceInput.value);
-            if (provinceData) regionSelect.value = provinceData.region;
+    // --- INITIALIZATION ---
+    function initialize() {
+        if (CURRENT_USER.username) {
+            document.getElementById('admin-username').textContent = `Chào, ${CURRENT_USER.username}!`;
+            document.getElementById('admin-avatar').src = CURRENT_USER.avatar || '/images/avatars/default-avatar.png';
         }
-    });
-
-    // Trigger loading of current page
-    const currentPageFromUrl = new URLSearchParams(window.location.search).get('page') || 'statistics';
-    if (currentPageFromUrl === 'statistics') {
-        initStatisticsPage();
-    } else if (currentPageFromUrl === 'all-foods') {
-        initAllFoodsPage();
-    } else if (currentPageFromUrl === 'users') {
-        initUsersPage();
+        window.addEventListener('popstate', (e) => renderPage(e.state?.page || 'statistics'));
+        renderPage(currentPage);
     }
 
-    // Tải tất cả dữ liệu ban đầu cho các renderers (ví dụ: chi tiết món ăn/người dùng)
-    // và để populate GLOBAL_USERS_DATA cho phần renderFoodDetail
-    async function loadInitialGlobalData() {
-         const allFoodsData = await fetchData('/admin/api/foods');
-         if (allFoodsData.success) {
-             GLOBAL_FOODS_DATA = allFoodsData.foods;
-         }
-         const allUsersData = await fetchData('/admin/api/users');
-         if (allUsersData.success) {
-             GLOBAL_USERS_DATA = allUsersData.users;
-         }
-    }
-    loadInitialGlobalData();
+    initialize();
 });
 </script>
 </body>

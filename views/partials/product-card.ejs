@@ -1,0 +1,33 @@
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl">
+    <a href="/product/<%= product._id %>" class="block">
+        <img class="h-64 w-full object-cover" src="<%= product.image %>" alt="<%= product.name %>">
+    </a>
+    <div class="p-6">
+        <span class="text-xs font-semibold uppercase tracking-wider text-red-600"><%= product.category.name %></span>
+        
+        <h3 class="text-2xl font-bold mt-2 mb-2">
+            <a href="/product/<%= product._id %>" class="text-gray-800 hover:text-red-600 transition duration-300"><%= product.name %></a>
+        </h3>
+
+        <% if (product.variants && product.variants.length > 0) { %>
+            <p class="text-xl font-semibold text-gray-700">
+                Từ <%= product.variants[0].price.toLocaleString('vi-VN') %> VNĐ
+            </p>
+        <% } %>
+
+        <% 
+        let avgRating = 0;
+        if (product.ratings && product.ratings.length > 0) {
+            avgRating = product.ratings.reduce((acc, r) => acc + r.stars, 0) / product.ratings.length;
+        }
+        %>
+        <div class="flex items-center mt-3">
+            <span class="text-yellow-400">
+                <% for(let i = 1; i <= 5; i++) { %>
+                    <% if(avgRating >= i) { %><i class="fas fa-star"></i><% } else if (avgRating >= i - 0.5) { %><i class="fas fa-star-half-alt"></i><% } else { %><i class="far fa-star"></i><% } %>
+                <% } %>
+            </span>
+            <span class="ml-2 text-sm text-gray-500">(<%= product.ratings.length %> đánh giá)</span>
+        </div>
+    </div>
+</div>

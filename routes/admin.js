@@ -1,309 +1,20 @@
+//routes/admin.js
+
 const express = require('express');
 const router = express.Router();
-const Food = require('../models/Food'); // Import Food model
-const User = require('../models/User'); // Import User model
-const { isLoggedIn, isAdmin } = require('../middlewares/auth'); // Đảm bảo các middleware này đã được import và định nghĩa đúng
-const multer = require('multer'); // Import multer cho xử lý file upload trong admin routes
+const Product = require('../models/Product');
+const Category = require('../models/Category');
+const Order = require('../models/Order');
+const User = require('../models/user');
+const { isLoggedIn, isAdmin, isAdminOrEmployee } = require('../middlewares/auth'); // Middleware mới
+const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Cấu hình các vùng miền và tỉnh/thành phố
-const REGIONS_DATA = {
-    "Bắc": [
-        "Hà Nội", "Hải Phòng", "Hải Dương", "Hưng Yên", "Vĩnh Phúc", "Bắc Ninh",
-        "Thái Bình", "Nam Định", "Ninh Bình", "Quảng Ninh", "Phú Thọ", "Tuyên Quang",
-        "Lào Cai", "Yên Bái", "Lai Châu", "Sơn La", "Hòa Bình", "Cao Bằng", "Bắc Kạn",
-        "Lạng Sơn", "Thái Nguyên", "Bắc Giang", "Điện Biên", "Hà Giang"
-    ],
-    "Trung": [
-        "Thanh Hóa", "Nghệ An", "Hà Tĩnh", "Quảng Bình", "Quảng Trị", "Thừa Thiên Huế",
-        "Đà Nẵng", "Quảng Nam", "Quảng Ngãi", "Bình Định", "Phú Yên", "Khánh Hòa",
-        "Ninh Thuận", "Bình Thuận", "Kon Tum", "Gia Lai", "Đắk Lắk", "Đắk Nông", "Lâm Đồng"
-    ],
-    "Nam": [
-        "TP Hồ Chí Minh", "Bình Phước", "Bình Dương", "Đồng Nai", "Tây Ninh", "Bà Rịa – Vũng Tàu",
-        "Long An", "Tiền Giang", "Bến Tre", "Trà Vinh", "Vĩnh Long", "Đồng Tháp",
-        "An Giang", "Kiên Giang", "Cần Thơ", "Hậu Giang", "Sóc Trăng", "Bạc Liêu",
-        "Cà Mau"
-    ]
-};
-
-// Hàm lấy tất cả tỉnh thành hoặc theo vùng miền
-const getProvincesByRegion = (region) => {
-    if (region && REGIONS_DATA[region]) {
-        return REGIONS_DATA[region];
-    }
-    let allProvinces = [];
-    for (const reg in REGIONS_DATA) {
-        allProvinces = allProvinces.concat(REGIONS_DATA[reg]);
-    }
-    return [...new Set(allProvinces)].sort();
-};
-
-// Hàm trợ giúp để lấy vùng miền từ tên tỉnh/thành phố
-const getRegionFromProvince = (provinceName) => {
-    for (const regionKey in REGIONS_DATA) {
-        if (REGIONS_DATA[regionKey].includes(provinceName)) {
-            return regionKey;
-        }
-    }
-    return null;
-};
-
-// Cấu hình để gửi cho frontend
-const CONFIG = {
-    CATEGORIES: Food.schema.path('category').enumValues, // Lấy từ enum của Food model
-    REGIONS: Object.keys(REGIONS_DATA), // Lấy danh sách vùng miền từ keys của REGIONS_DATA
-    PROVINCES: getProvincesByRegion().map(name => ({ name: name, region: getRegionFromProvince(name) })) // Gửi cả tên và vùng miền
-};
-
-
-// Route chính cho trang quản trị Admin
-// Đảm bảo chỉ người dùng đã đăng nhập VÀ có vai trò admin mới có thể truy cập
-router.get('/', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const page = req.query.page || 'statistics'; // Trang mặc định là 'statistics'
-        let locals = {
-            title: 'Trang Quản Trị',
-            currentPage: page,
-            username: req.session.username, // Lấy username từ session
-            user: req.user, // Lấy toàn bộ thông tin user từ req (do middleware isAdmin/isLoggedIn thêm vào)
-            CONFIG: CONFIG, // Truyền cấu hình danh mục, vùng miền, tỉnh/thành phố cho frontend
-            filters: { // Các bộ lọc mặc định cho bảng món ăn/người dùng
-                status: req.query.status || 'all',
-                category: req.query.category || 'all',
-                region: req.query.region || 'all',
-                province: req.query.province || 'all',
-                name: req.query.q || '', // Lọc theo tên món ăn
-                location: req.query.location || '', // Lọc theo vùng miền/tỉnh thành
-                role: req.query.userRole || 'all' // Cho user filter
-            }
-        };
-
-        // Xác định phần nội dung động cần chèn vào layout
-        let bodyPartial;
-        if (page === 'statistics') {
-            bodyPartial = 'statistics'; // Sẽ include views/admin/statistics.ejs
-            // Nếu là trang thống kê, fetch dữ liệu thống kê
-            const pendingFoods = await Food.countDocuments({ status: 'pending' });
-            const totalFoods = await Food.countDocuments();
-            const totalUsers = await User.countDocuments();
-
-            // Phân bố món ăn theo danh mục
-            const categoryDistribution = await Food.aggregate([
-                { $match: { status: 'approved' } }, // Chỉ tính các món đã duyệt
-                { $group: { _id: "$category", count: { $sum: 1 } } },
-                { $sort: { count: -1 } }
-            ]);
-
-            // Top món ăn có đánh giá cao nhất (avgRating > 0 và có ít nhất 1 đánh giá)
-            const topFoods = await Food.aggregate([
-                { $match: { status: 'approved', 'ratings.0': { $exists: true } } }, // Chỉ món đã duyệt và có ít nhất 1 đánh giá
-                {
-                    $addFields: {
-                        avgRating: { $avg: "$ratings.stars" },
-                        totalRatings: { $size: "$ratings" }
-                    }
-                },
-                { $sort: { avgRating: -1, totalRatings: -1 } }, // Sắp xếp theo rating và số lượt đánh giá
-                { $limit: 5 } // Top 5
-            ]);
-
-            // Top người dùng tích cực nhất (đăng nhiều món ăn nhất)
-            const topUsers = await Food.aggregate([
-                { $match: { status: 'approved' } },
-                { $group: { _id: "$createdBy", foodCount: { $sum: 1 } } },
-                { $sort: { foodCount: -1 } },
-                { $limit: 5 }, // Top 5
-                {
-                    $lookup: {
-                        from: 'users',
-                        localField: '_id',
-                        foreignField: '_id',
-                        as: 'userDetails'
-                    }
-                },
-                { $unwind: '$userDetails' },
-                { $project: { _id: 0, username: '$userDetails.username', foodCount: 1 } }
-            ]);
-
-            locals.statsData = {
-                pendingFoods,
-                totalFoods,
-                totalUsers,
-                categoryDistribution,
-                topFoods,
-                topUsers
-            };
-        } else if (page === 'all-foods') {
-            bodyPartial = 'foods'; // Sẽ include views/admin/foods.ejs
-            // Dữ liệu foods sẽ được fetch qua API bởi frontend sau khi trang được tải
-        } else if (page === 'users') {
-            bodyPartial = 'users'; // Sẽ include views/admin/users.ejs
-            // Dữ liệu users sẽ được fetch qua API bởi frontend sau khi trang được tải
-        } else {
-            // Fallback nếu page không hợp lệ, có thể chuyển hướng về thống kê hoặc trang lỗi
-            return res.redirect('/admin?page=statistics');
-        }
-
-        // Truyền tên partial cần include vào locals
-        locals.bodyPartial = bodyPartial;
-
-        // Render trang layout chính
-        res.render('admin/layout', locals); 
-    } catch (error) {
-        console.error('Lỗi khi tải trang admin:', error);
-        res.status(500).send('Lỗi Server khi tải trang quản trị.');
-    }
-});
-
-// API để lấy dữ liệu thống kê (dùng cho AJAX)
-router.get('/api/dashboard-data', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const pendingFoods = await Food.countDocuments({ status: 'pending' });
-        const totalFoods = await Food.countDocuments();
-        const totalUsers = await User.countDocuments();
-
-        const categoryDistribution = await Food.aggregate([
-            { $match: { status: 'approved' } },
-            { $group: { _id: "$category", count: { $sum: 1 } } },
-            { $sort: { count: -1 } }
-        ]);
-
-        const topFoods = await Food.aggregate([
-            { $match: { status: 'approved', 'ratings.0': { $exists: true } } },
-            {
-                $addFields: {
-                    avgRating: { $avg: "$ratings.stars" },
-                    totalRatings: { $size: "$ratings" }
-                }
-            },
-            { $sort: { avgRating: -1, totalRatings: -1 } },
-            { $limit: 5 }
-        ]);
-
-        const topUsers = await Food.aggregate([
-            { $match: { status: 'approved' } },
-            { $group: { _id: "$createdBy", foodCount: { $sum: 1 } } },
-            { $sort: { foodCount: -1 } },
-            { $limit: 5 },
-            { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'userDetails' } },
-            { $unwind: '$userDetails' },
-            { $project: { _id: 0, username: '$userDetails.username', foodCount: 1 } }
-        ]);
-
-        res.json({
-            success: true,
-            data: {
-                stats: { pendingFoods, totalFoods, totalUsers },
-                categoryDistribution,
-                topFoods,
-                topUsers
-            }
-        });
-    } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu dashboard API:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy dữ liệu dashboard.' });
-    }
-});
-
-
-// API để lấy danh sách món ăn cho trang Admin (có thể lọc)
-router.get('/api/foods', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        let filter = {};
-        if (req.query.status && req.query.status !== 'all') {
-            filter.status = req.query.status;
-        }
-        if (req.query.category && req.query.category !== 'all') {
-            filter.category = req.query.category;
-        }
-        if (req.query.region && req.query.region !== 'all') {
-            const provincesInRegion = getProvincesByRegion(req.query.region);
-            if (provincesInRegion.length > 0) {
-                filter.province = { $in: provincesInRegion };
-            }
-        }
-        if (req.query.province && req.query.province !== 'all') {
-            filter.province = req.query.province;
-        }
-        if (req.query.q) { // Tìm kiếm theo tên món ăn
-            filter.name = { $regex: req.query.q, $options: 'i' };
-        }
-        if (req.query.location) { // Tìm kiếm kết hợp theo vùng miền hoặc tỉnh thành
-            const searchLocation = req.query.location;
-            const allProvinces = getProvincesByRegion(); 
-            const matchingProvinces = allProvinces.filter(p => 
-                p.toLowerCase().includes(searchLocation.toLowerCase()) || 
-                getRegionFromProvince(p)?.toLowerCase().includes(searchLocation.toLowerCase())
-            );
-            
-            if (matchingProvinces.length > 0) {
-                filter.province = { $in: matchingProvinces };
-            } else {
-                return res.json({ success: true, foods: [] });
-            }
-        }
-
-        const foods = await Food.find(filter)
-                                .populate('createdBy', 'username') // Lấy username của người tạo
-                                .sort({ createdAt: -1 })
-                                .lean();
-        res.json({ success: true, foods });
-    } catch (error) {
-        console.error('Lỗi khi lấy danh sách món ăn API:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách món ăn.' });
-    }
-});
-
-// API để lấy danh sách người dùng cho trang Admin (có thể lọc)
-router.get('/api/users', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        let filter = {};
-        if (req.query.role && req.query.role !== 'all') {
-            filter.role = req.query.role;
-        }
-        const users = await User.find(filter).sort({ createdAt: -1 }).lean();
-        res.json({ success: true, users });
-    } catch (error) {
-        console.error('Lỗi khi lấy danh sách người dùng API:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy danh sách người dùng.' });
-    }
-});
-
-// API để lấy chi tiết một món ăn theo ID (dùng cho modal chỉnh sửa)
-router.get('/api/foods/:id', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const food = await Food.findById(req.params.id).lean();
-        if (!food) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn.' });
-        }
-        res.json({ success: true, food });
-    } catch (error) {
-        console.error('Lỗi khi lấy chi tiết món ăn qua API:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy chi tiết món ăn.' });
-    }
-});
-
-// API để lấy chi tiết một người dùng theo ID (dùng cho modal chỉnh sửa)
-router.get('/api/users/:id', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const user = await User.findById(req.params.id).lean();
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-        }
-        res.json({ success: true, user });
-    } catch (error) {
-        console.error('Lỗi khi lấy chi tiết người dùng qua API:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi lấy chi tiết người dùng.' });
-    }
-});
-
-
-// Các API xử lý hành động (CRUD) - Đảm bảo Multer upload ở đây nếu có file
-const adminStorage = multer.diskStorage({
+// Cấu hình Multer cho ảnh sản phẩm
+const productStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = './public/images';
+        const uploadDir = './public/images/products'; // Thư mục mới
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -313,217 +24,341 @@ const adminStorage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     }
 });
-const adminUpload = multer({ storage: adminStorage });
+const productUpload = multer({ storage: productStorage });
 
-// Thêm món ăn mới (từ admin)
-router.post('/foods/add', isLoggedIn, isAdmin, adminUpload.single('image'), async (req, res) => {
+// --- TRANG ADMIN CHÍNH (LAYOUT) ---
+// Cả Admin và Nhân viên đều có thể truy cập
+router.get('/', isLoggedIn, isAdminOrEmployee, async (req, res) => {
     try {
-        let { name, description, category, otherCategoryName, province, suggestedAt, status } = req.body;
-        const region = getRegionFromProvince(province);
-
-        if (!name || !category || !region || !province || !req.file) {
-            if (req.file) fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting incomplete food image:", err); });
-            return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ các trường bắt buộc và tải lên ảnh.' });
-        }
-        if (category === 'Các loại khác' && (!otherCategoryName || otherCategoryName.trim() === '')) {
-            if (req.file) fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting otherCategoryName image:", err); });
-            return res.status(400).json({ success: false, message: 'Vui lòng nhập tên loại hải sản cụ thể khi chọn "Các loại khác".' });
-        }
-
-        const newFood = new Food({
-            name, description, category, province, region, suggestedAt, status,
-            otherCategoryName: category === 'Các loại khác' ? otherCategoryName.trim() : '',
-            image: '/images/' + req.file.filename,
-            createdBy: req.session.userId, // Người tạo là admin đang đăng nhập
-        });
-        await newFood.save();
-        res.json({ success: true, message: 'Món ăn đã được thêm thành công!' });
-    } catch (error) {
-        console.error('Lỗi khi thêm món ăn:', error);
-        if (req.file && req.file.path) fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting food image after add failure:", err); });
-        if (error.code === 11000) return res.status(400).json({ success: false, message: 'Tên món ăn đã tồn tại.' });
-        res.status(500).json({ success: false, message: 'Lỗi server khi thêm món ăn.' });
-    }
-});
-
-// Chỉnh sửa món ăn
-router.post('/foods/edit/:id', isLoggedIn, isAdmin, adminUpload.single('image'), async (req, res) => {
-    try {
-        const { name, description, category, otherCategoryName, province, suggestedAt, status } = req.body;
-        const region = getRegionFromProvince(province);
-        const foodId = req.params.id;
-
-        const updates = { name, description, category, province, region, suggestedAt, status };
-        updates.otherCategoryName = category === 'Các loại khác' ? otherCategoryName.trim() : '';
-
-        if (req.file) {
-            const oldFood = await Food.findById(foodId);
-            if (oldFood && oldFood.image && oldFood.image !== '/images/default-food.png') {
-                fs.unlink(path.join(__dirname, '../public', oldFood.image), err => {
-                    if (err && err.code !== 'ENOENT') console.error("Error deleting old food image:", err);
-                });
-            }
-            updates.image = '/images/' + req.file.filename;
-        }
-
-        const updatedFood = await Food.findByIdAndUpdate(foodId, updates, { new: true, runValidators: true });
-        if (!updatedFood) return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn để cập nhật.' });
-        res.json({ success: true, message: 'Món ăn đã được cập nhật thành công!' });
-    } catch (error) {
-        console.error('Lỗi khi cập nhật món ăn:', error);
-        if (req.file && req.file.path) fs.unlink(req.file.path, (err) => { if (err) console.error("Error deleting food image after edit failure:", err); });
-        if (error.code === 11000) return res.status(400).json({ success: false, message: 'Tên món ăn đã tồn tại.' });
-        res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật món ăn.' });
-    }
-});
-
-// Duyệt món ăn
-router.post('/foods/:id/approve', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const food = await Food.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true });
-        if (!food) return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn.' });
-        res.json({ success: true, message: 'Món ăn đã được duyệt!' });
-    } catch (error) {
-        console.error('Lỗi khi duyệt món ăn:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi duyệt món ăn.' });
-    }
-});
-
-// Từ chối (xóa) món ăn chờ duyệt
-router.post('/foods/:id/reject', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const food = await Food.findById(req.params.id);
-        if (!food) return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn.' });
-
-        if (food.image && food.image !== '/images/default-food.png') {
-            fs.unlink(path.join(__dirname, '../public', food.image), err => {
-                if (err && err.code !== 'ENOENT') console.error("Error deleting rejected food image:", err);
-            });
-        }
-        await Food.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: 'Món ăn đã bị từ chối và xóa.' });
-    } catch (error) {
-        console.error('Lỗi khi từ chối món ăn:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi từ chối món ăn.' });
-    }
-});
-
-// Xóa món ăn đã duyệt (khác với từ chối món chờ duyệt)
-router.delete('/foods/:id', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const food = await Food.findById(req.params.id);
-        if (!food) return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn.' });
-
-        if (food.image && food.image !== '/images/default-food.png') {
-            fs.unlink(path.join(__dirname, '../public', food.image), err => {
-                if (err && err.code !== 'ENOENT') console.error("Error deleting approved food image:", err);
-            });
-        }
-        await Food.findByIdAndDelete(req.params.id);
-        res.json({ success: true, message: 'Món ăn đã được xóa vĩnh viễn.' });
-    } catch (error) {
-        console.error('Lỗi khi xóa món ăn:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi xóa món ăn.' });
-    }
-});
-
-// Thêm người dùng mới (từ admin)
-router.post('/users/add', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const { username, email, password, role } = req.body;
-        if (!username || !password || !role) {
-            return res.status(400).json({ success: false, message: 'Tên người dùng, mật khẩu và vai trò là bắt buộc.' });
+        // Nhân viên vào thẳng trang đơn hàng nếu không có query
+        if (req.session.role === 'employee' && !req.query.page) {
+            return res.redirect('/admin?page=orders');
         }
         
-        // Kiểm tra username hoặc email đã tồn tại chưa
-        const existingUser = await User.findOne({ $or: [{ username: username }, { email: email }] });
-        if (existingUser) {
+        const page = req.query.page || 'statistics'; // Trang mặc định cho Admin
+        const categories = await Category.find({}).lean();
+        
+        let locals = {
+            title: 'Trang Quản Trị',
+            currentPage: page,
+            username: req.session.username,
+            userRole: req.session.role, //
+            CONFIG: { // Gửi CONFIG mới
+                CATEGORIES: categories
+            }
+        };
+
+        let bodyPartial;
+        
+        // Phân quyền xem trang
+        if (page === 'statistics' && req.session.role === 'admin') {
+            bodyPartial = 'statistics';
+            // Logic thống kê mới (theo đề cương)
+            const totalProducts = await Product.countDocuments();
+            const totalCustomers = await User.countDocuments({ role: 'customer' });
+            const totalOrders = await Order.countDocuments();
+            
+            const revenueAgg = await Order.aggregate([
+                { $match: { status: 'Hoàn thành' } },
+                { $group: { _id: null, totalRevenue: { $sum: '$total' } } }
+            ]);
+            
+            locals.statsData = {
+                totalProducts,
+                totalCustomers,
+                totalOrders,
+                totalRevenue: revenueAgg.length > 0 ? revenueAgg[0].totalRevenue : 0
+            };
+
+        } else if (page === 'products') { // Admin & Employee
+            bodyPartial = 'products'; // Trang quản lý sản phẩm
+        } else if (page === 'categories' && req.session.role === 'admin') { // Chỉ Admin
+            bodyPartial = 'categories'; // Trang quản lý danh mục
+        } else if (page === 'orders') { // Admin & Employee
+            bodyPartial = 'orders'; // Trang quản lý đơn hàng
+        } else if (page === 'employees' && req.session.role === 'admin') { // Chỉ Admin
+            bodyPartial = 'employees'; // Trang quản lý nhân viên
+        } else {
+            // Nếu không có quyền hoặc trang không tồn tại
+            if (req.session.role === 'employee') {
+                return res.redirect('/admin?page=orders');
+            }
+            return res.redirect('/admin?page=statistics');
+        }
+
+        locals.bodyPartial = bodyPartial;
+        res.render('admin/layout', locals); // Dùng layout admin cũ
+    } catch (error) {
+        console.error('Lỗi khi tải trang admin:', error);
+        res.status(500).send('Lỗi Server.');
+    }
+});
+
+
+// --- CÁC API CHO ADMIN & EMPLOYEE ---
+
+// === QUẢN LÝ SẢN PHẨM ===
+
+// API: Lấy danh sách sản phẩm (Hỗ trợ tìm kiếm cho Nhân viên/Admin)
+router.get('/api/products', isLoggedIn, isAdminOrEmployee, async (req, res) => {
+    try {
+        let filter = {};
+        const { q } = req.query; // Lấy tham số tìm kiếm 'q'
+        
+        if (q) {
+            filter.name = { $regex: q, $options: 'i' }; // Tìm theo tên
+        }
+
+        const products = await Product.find(filter) // Áp dụng bộ lọc
+                                .populate('category', 'name')
+                                .populate('createdBy', 'username')
+                                .sort({ createdAt: -1 })
+                                .lean();
+        res.json({ success: true, products });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Thêm sản phẩm mới (Admin & Employee)
+router.post('/api/products/add', isLoggedIn, isAdminOrEmployee, productUpload.single('image'), async (req, res) => {
+    try {
+        // variants là một JSON string: [{"name": "Loại 1", "price": 100, "unit": "kg"}]
+        const { name, description, category, variants } = req.body;
+        
+        if (!name || !description || !category || !variants || !req.file) {
+            if (req.file) fs.unlink(req.file.path, () => {});
+            return res.status(400).json({ success: false, message: 'Vui lòng điền đủ thông tin.' });
+        }
+
+        const newProduct = new Product({
+            name,
+            description,
+            category,
+            image: '/images/products/' + req.file.filename,
+            variants: JSON.parse(variants), // Chuyển chuỗi JSON thành mảng
+            createdBy: req.session.userId
+        });
+        await newProduct.save();
+        res.json({ success: true, message: 'Thêm sản phẩm thành công!' });
+    } catch (error) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        console.error('Lỗi thêm sản phẩm:', error);
+        if (error.code === 11000) {
+             return res.status(400).json({ success: false, message: 'Tên sản phẩm đã tồn tại.' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Lấy chi tiết 1 sản phẩm (cho modal sửa)
+router.get('/api/products/:id', isLoggedIn, isAdminOrEmployee, async (req, res) => {
+     try {
+        const product = await Product.findById(req.params.id).lean();
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm.' });
+        }
+        res.json({ success: true, product });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Sửa sản phẩm (Admin & Employee)
+router.post('/api/products/edit/:id', isLoggedIn, isAdminOrEmployee, productUpload.single('image'), async (req, res) => {
+    try {
+        const { name, description, category, variants } = req.body;
+        const updates = {
+            name,
+            description,
+            category,
+            variants: JSON.parse(variants)
+        };
+
+        if (req.file) {
+            updates.image = '/images/products/' + req.file.filename;
+            // (Cần logic xóa ảnh cũ)
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+        if (!updatedProduct) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm.' });
+        }
+        res.json({ success: true, message: 'Cập nhật thành công!' });
+    } catch (error) {
+        console.error('Lỗi sửa sản phẩm:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Xóa sản phẩm (chỉ Admin)
+router.delete('/api/products/:id', isLoggedIn, isAdmin, async (req, res) => {
+    try {
+        const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+        if (!deletedProduct) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm.' });
+        }
+        // (Cần logic xóa ảnh)
+        res.json({ success: true, message: 'Xóa sản phẩm thành công.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+
+// === QUẢN LÝ ĐƠN HÀNG (Admin & Employee) ===
+
+// API: Lấy danh sách đơn hàng (Hỗ trợ tìm kiếm)
+router.get('/api/orders', isLoggedIn, isAdminOrEmployee, async (req, res) => {
+    try {
+        let filter = {};
+        const { q, status } = req.query; // Lấy tham số tìm kiếm 'q' và lọc 'status'
+
+        if (status && status !== 'all') {
+            filter.status = status; // Lọc theo trạng thái
+        }
+        
+        if (q) {
+            // Tìm kiếm theo tên hoặc SĐT của khách hàng
+            filter['shippingAddress.phone'] = { $regex: q, $options: 'i' };
+            // (Bạn có thể mở rộng để tìm theo tên, email...)
+        }
+
+        const orders = await Order.find(filter) // Áp dụng bộ lọc
+            .populate('customer', 'username email')
+            .sort({ createdAt: -1 })
+            .lean();
+        res.json({ success: true, orders });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Cập nhật trạng thái đơn hàng
+router.post('/api/orders/:id/status', isLoggedIn, isAdminOrEmployee, async (req, res) => {
+    try {
+        const { status } = req.body;
+        // Nhân viên không được phép HỦY hoặc HOÀN TRẢ đơn
+        if (req.session.role === 'employee' && (status === 'Đã hủy' || status === 'Hoàn trả')) {
+             return res.status(403).json({ success: false, message: 'Bạn không có quyền hủy đơn.' });
+        }
+        
+        const updatedOrder = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        if (!updatedOrder) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng.' });
+        }
+        res.json({ success: true, message: 'Cập nhật trạng thái thành công!' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+
+// === QUẢN LÝ DANH MỤC (Chỉ Admin) ===
+
+router.get('/api/categories', isLoggedIn, isAdmin, async (req, res) => {
+    try {
+        const categories = await Category.find({}).lean();
+        res.json({ success: true, categories });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+router.post('/api/categories/add', isLoggedIn, isAdmin, async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        const newCategory = new Category({ name, description });
+        await newCategory.save();
+        res.json({ success: true, message: 'Thêm danh mục thành công!' });
+    } catch (error) {
+         if (error.code === 11000) {
+             return res.status(400).json({ success: false, message: 'Tên danh mục đã tồn tại.' });
+        }
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// (Thêm API cho Sửa/Xóa Category tại đây)
+
+
+// === QUẢN LÝ NGƯỜI DÙNG (Chỉ Admin) ===
+
+// API: Lấy danh sách Người dùng (Khách hàng & Nhân viên)
+router.get('/api/users', isLoggedIn, isAdmin, async (req, res) => {
+    try {
+        const { q, role } = req.query;
+        let filter = { role: { $ne: 'admin' } }; // Luôn loại trừ Admin
+
+        if (q) {
+            filter.$or = [
+                { username: { $regex: q, $options: 'i' } },
+                { email: { $regex: q, $options: 'i' } }
+            ];
+        }
+        if (role && role !== 'all') {
+            filter.role = role;
+        }
+
+        const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
+        res.json({ success: true, users });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+});
+
+// API: Tạo tài khoản Nhân viên
+router.post('/api/users/add-employee', isLoggedIn, isAdmin, async (req, res) => {
+    try {
+        const { username, password, email } = req.body;
+        
+        const userExist = await User.findOne({ $or: [{ username }, { email }] });
+        if (userExist) {
             return res.status(400).json({ success: false, message: 'Tên người dùng hoặc email đã tồn tại.' });
         }
 
-        const newUser = new User({ username, email, password, role }); // Mật khẩu sẽ được hash bởi pre-save hook trong User model
-        await newUser.save();
-        res.json({ success: true, message: 'Người dùng đã được thêm thành công!' });
+        const newEmployee = new User({
+            username,
+            password, // Model sẽ tự hash
+            email,
+            role: 'employee' //
+        });
+        await newEmployee.save();
+        res.json({ success: true, message: 'Tạo tài khoản nhân viên thành công!' });
     } catch (error) {
-        console.error('Lỗi khi thêm người dùng:', error);
-        if (error.code === 11000) return res.status(400).json({ success: false, message: 'Tên người dùng hoặc email đã tồn tại.' });
-        res.status(500).json({ success: false, message: 'Lỗi server khi thêm người dùng.' });
+        console.error('Lỗi tạo nhân viên:', error);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 });
 
-// Chỉnh sửa người dùng
-router.post('/users/edit/:id', isLoggedIn, isAdmin, async (req, res) => {
+// API: Xóa/Khóa tài khoản
+router.delete('/api/users/:id', isLoggedIn, isAdmin, async (req, res) => {
     try {
-        const userId = req.params.id;
-        const { username, email, password, role } = req.body;
-        const updates = { username, email, role };
-
-        if (password) {
-            // Nếu có mật khẩu mới, hash nó. Giả sử User model có hook hashing.
-            const user = await User.findById(userId);
-            if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-            user.password = password; // Sẽ kích hoạt pre-save hash hook
-            await user.save({ validateBeforeSave: false }); // Chỉ lưu password, không validate lại toàn bộ user
+        const user = await User.findById(req.params.id);
+        if (!user || user.role === 'admin') {
+             return res.status(403).json({ success: false, message: 'Không thể xóa tài khoản này.' });
         }
-        
-        const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true, runValidators: true });
-        if (!updatedUser) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng để cập nhật.' });
-        
-        res.json({ success: true, message: 'Người dùng đã được cập nhật thành công!', user: updatedUser });
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: 'Xóa người dùng thành công.' });
     } catch (error) {
-        console.error('Lỗi khi cập nhật người dùng:', error);
-        if (error.code === 11000) return res.status(400).json({ success: false, message: 'Tên người dùng hoặc email đã tồn tại.' });
-        res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật người dùng.' });
+        res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 });
 
-// Cấp quyền admin
-router.post('/users/:id/make-admin', isLoggedIn, isAdmin, async (req, res) => {
+// API: Xóa đánh giá (Admin)
+router.delete('/api/products/:productId/ratings/:ratingId', isLoggedIn, isAdmin, async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(req.params.id, { role: 'admin' }, { new: true });
-        if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-        res.json({ success: true, message: `Đã cấp quyền Admin cho ${user.username}.` });
-    } catch (error) {
-        console.error('Lỗi khi cấp quyền admin:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi cấp quyền admin.' });
-    }
-});
-
-// Xóa người dùng
-router.delete('/users/:id', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        // Ngăn không cho admin tự xóa tài khoản của mình
-        if (req.params.id === req.session.userId) {
-            return res.status(403).json({ success: false, message: 'Bạn không thể xóa tài khoản Admin của chính mình.' });
+        const { productId, ratingId } = req.params;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy sản phẩm.' });
         }
-        const user = await User.findByIdAndDelete(req.params.id);
-        if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng.' });
-        res.json({ success: true, message: `Người dùng ${user.username} đã được xóa.` });
+        product.ratings.pull(ratingId); // Xóa sub-document
+        await product.save();
+        res.json({ success: true, message: 'Xóa đánh giá thành công.' });
     } catch (error) {
-        console.error('Lỗi khi xóa người dùng:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi xóa người dùng.' });
+         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 });
-
-// Xóa bình luận món ăn (từ admin)
-router.delete('/foods/:foodId/comments/:commentId', isLoggedIn, isAdmin, async (req, res) => {
-    try {
-        const { foodId, commentId } = req.params;
-        const food = await Food.findById(foodId);
-        if (!food) {
-            return res.status(404).json({ success: false, message: 'Không tìm thấy món ăn.' });
-        }
-
-        // Kéo (pull) bình luận ra khỏi mảng ratings
-        food.ratings.pull(commentId); // Mongoose method to remove subdocument by _id
-        await food.save({ validateBeforeSave: false }); // Không chạy validator cho toàn bộ food document
-
-        res.json({ success: true, message: 'Bình luận đã được xóa.' });
-    } catch (error) {
-        console.error('Lỗi khi xóa bình luận:', error);
-        res.status(500).json({ success: false, message: 'Lỗi server khi xóa bình luận.' });
-    }
-});
-
 
 module.exports = router;

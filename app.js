@@ -1,5 +1,5 @@
+//  app.js 
 console.log("App.js is starting...");
-
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
@@ -12,8 +12,8 @@ const app = express();
 
 // Kết nối MongoDB
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ Kết nối MongoDB thành công'))
-    .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err)); 
+    .then(() => console.log(' Kết nối MongoDB thành công'))
+    .catch(err => console.error(' Lỗi kết nối MongoDB:', err)); 
 
 // Middleware cơ bản
 app.use(express.urlencoded({ extended: true }));
@@ -32,32 +32,31 @@ app.use(session({
     saveUninitialized: false,
     store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
     cookie: {
-        maxAge: 1000 * 60 * 60,
-        secure: false
+        maxAge: 1000 * 60 * 60 * 24, // 1 ngày
+        secure: false // Đặt là true nếu dùng HTTPS
     }
 }));
 
+//  Middleware để truyền session vào mọi file EJS
+app.use((req, res, next) => {
+    res.locals.session = req.session; // Giúp EJS truy cập được session.userId, .username, .role
+    next();
+});
 
 // Import các routes
 const authRoutes = require('./routes/auth');
-const foodRoutes = require('./routes/food');
+const shopRoutes = require('./routes/shop'); 
 const adminRoutes = require('./routes/admin');
-const searchRoutes = require('./routes/search');
+
 
 // Mount routes
 app.use('/', authRoutes);
-app.use('/', foodRoutes);
-app.use('/admin', adminRoutes);
-app.use('/search', searchRoutes);
-
-// Route test
-app.get('/test-admin', (req, res) => {
-    res.send(`Route test-admin chạy OK. Đăng nhập: ${req.isLoggedIn}, Admin: ${req.isAdmin}`);
-});
+app.use('/', shopRoutes); 
+app.use('/admin', adminRoutes); 
 
 // Xử lý 404
 app.use((req, res, next) => {
-    res.status(404).send('404 - Trang không tìm thấy!');
+    res.status(404).render('404', { title: 'Không tìm thấy trang' }); // Tạo file view 404.ejs
 });
 
 // Global error handler
@@ -69,6 +68,6 @@ app.use((err, req, res, next) => {
 // Khởi động server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
+    console.log(` Server chạy tại http://localhost:${PORT}`);
     console.log(`Bảng quản trị Admin: http://localhost:${PORT}/admin`);
 });

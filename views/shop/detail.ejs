@@ -1,0 +1,156 @@
+<%- include('../partials/header') %>
+
+<div class="bg-gray-50" style="padding-top: 20px;">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-6xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <div>
+                    <div class="mb-6">
+                        <img src="<%= product.image %>" alt="<%= product.name %>" class="w-full h-96 object-cover rounded-xl shadow-md">
+                    </div>
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-3">Mô tả sản phẩm</h2>
+                        <p class="text-lg leading-relaxed text-gray-600" style="white-space: pre-wrap;"><%= product.description %></p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="border-b pb-6 mb-6">
+                        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-3"><%= product.name %></h1>
+                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 text-sm">
+                            <span class="flex items-center">
+                                <i class="fas fa-tag mr-2 text-red-500"></i>
+                                <%= product.category.name %>
+                            </span>
+                            <span class="flex items-center">
+                                <i class="fas fa-star mr-2 text-yellow-500"></i>
+                                <%= averageRating %> (<%= product.ratings.length %> đánh giá)
+                            </span>
+                        </div>
+                    </div>
+
+                    <form action="/cart/add" method="POST" class="mb-8">
+                        <input type="hidden" name="productId" value="<%= product._id %>">
+                        
+                        <div class="mb-4">
+                            <label for="variantSelect" class="font-semibold block mb-2 text-lg">Chọn loại:</label>
+                            <select class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300" id="variantSelect" name="variantId" required>
+                                <% if (product.variants && product.variants.length > 0) { %>
+                                    <% product.variants.forEach(variant => { %>
+                                        <option value="<%= variant._id %>" data-price="<%= variant.price %>" data-unit="<%= variant.unit %>">
+                                            <%= variant.name %> (<%= variant.price.toLocaleString('vi-VN') %> VNĐ / <%= variant.unit %>)
+                                        </option>
+                                    <% }); %>
+                                <% } else { %>
+                                    <option value="" disabled>Sản phẩm hiện chưa có sẵn</option>
+                                <% } %>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="quantity" class="font-semibold block mb-2 text-lg">Số lượng:</label>
+                            <input type="number" name="quantity" id="quantity" class="w-full p-3 rounded-lg border border-gray-300" value="1" min="0.1" step="0.1" required>
+                            <div class="text-sm text-gray-500 mt-1">Đơn vị tính theo loại bạn chọn (ví dụ: 1.5 = 1.5kg).</div>
+                        </div>
+                        
+                        <button type="submit" class="w-full px-8 py-4 bg-red-600 text-white text-lg font-bold rounded-lg hover:bg-red-700 transition shadow-md"
+                                <%= (product.variants && product.variants.length > 0) ? '' : 'disabled' %>>
+                            <i class="fas fa-shopping-cart mr-2"></i>Thêm vào giỏ hàng
+                        </button>
+                    </form>
+
+                    <div class="border-t pt-8" id="reviews-section">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">Đánh giá của khách hàng</h2>
+                        
+                        <% if (canReview) { %>
+                            <div class="border-t pt-8">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4">Viết đánh giá (Đã mua hàng)</h2>
+                                <form action="/product/<%= product._id %>/rate" method="POST" id="rate-food-form">
+                                    <div class="mb-4">
+                                        <label class="font-semibold block mb-2">Chấm điểm:</label>
+                                        <div class="rating-input text-3xl text-gray-300">
+                                            <% [1,2,3,4,5].forEach(i => { %>
+                                                <i class="far fa-star cursor-pointer hover:text-yellow-400" data-value="<%= i %>"></i>
+                                            <% }) %>
+                                            <input type="hidden" name="stars" value="0" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label for="comment" class="font-semibold block mb-2">Bình luận:</label>
+                                        <textarea name="comment" rows="4" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-300" placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."></textarea>
+                                    </div>
+                                    <button type="submit" class="px-8 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md">Gửi đánh giá</button>
+                                </form>
+                            </div>
+                        <% } else if (session.userId && hasReviewed) { %>
+                            <p class="p-3 bg-blue-100 text-blue-800 rounded-lg">Bạn đã đánh giá sản phẩm này.</p>
+                        <% } else if (session.userId) { %>
+                            <p class="p-3 bg-yellow-100 text-yellow-800 rounded-lg">Bạn phải mua sản phẩm này và đơn hàng được "Hoàn thành" mới có thể đánh giá.</p>
+                        <% } else { %>
+                            <div class="border-t pt-8 text-center">
+                                <p class="text-lg">Vui lòng <a href="/login?returnTo=/product/<%= product._id %>" class="text-red-600 font-bold hover:underline">đăng nhập</a> để viết đánh giá (chỉ dành cho khách đã mua hàng).</p>
+                            </div>
+                        <% } %>
+
+                        <div id="reviews-list" class="space-y-6 mt-6">
+                            <% if(product.ratings && product.ratings.length > 0) { %>
+                                <% product.ratings.slice().reverse().forEach(rating => { %>
+                                    <div class="flex gap-4 border-t pt-6">
+                                        <img src="<%= rating.userId.avatar %>" class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+                                        <div class="flex-grow">
+                                            <div class="flex items-center justify-between">
+                                                <span class="font-bold text-gray-800"><%= rating.userId.username %></span>
+                                                <span class="text-sm text-gray-500"><%= new Date(rating.createdAt).toLocaleDateString('vi-VN') %></span>
+                                            </div>
+                                            <div class="my-1 text-yellow-400">
+                                                <%= '★'.repeat(rating.stars) %><%= '☆'.repeat(5 - rating.stars) %>
+                                                <% if (rating.isVerifiedPurchase) { %>
+                                                    <span class="ml-2 text-xs font-bold text-green-600">(Đã mua hàng)</span>
+                                                <% } %>
+                                            </div>
+                                            <p class="text-gray-600"><%= rating.comment %></p>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="text-gray-500">Chưa có đánh giá nào.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ratingForm = document.getElementById('rate-food-form');
+        if (ratingForm) {
+            // ... (Copy toàn bộ script xử lý sao từ file details.ejs cũ của bạn dán vào đây) ...
+            const ratingInputContainer = ratingForm.querySelector('.rating-input');
+            const stars = ratingInputContainer.querySelectorAll('i.fa-star');
+            const hiddenInput = ratingInputContainer.querySelector('input[name="stars"]');
+
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    const value = star.dataset.value;
+                    hiddenInput.value = value;
+                    stars.forEach(s => {
+                        if (parseInt(s.dataset.value) <= parseInt(value)) {
+                            s.classList.add('fas', 'text-yellow-400');
+                            s.classList.remove('far', 'text-gray-300');
+                        } else {
+                            s.classList.add('far', 'text-gray-300');
+                            s.classList.remove('fas', 'text-yellow-400');
+                        }
+                    });
+                });
+            });
+        }
+    });
+</script>
+
+<%- include('../partials/footer') %>

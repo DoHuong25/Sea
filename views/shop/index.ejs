@@ -1,0 +1,62 @@
+<%- include('../partials/header') %>
+
+<div class="container mt-4">
+
+    <div class="card card-body bg-light mb-4">
+        <form action="/" method="GET">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="q" class="form-label">Tìm kiếm sản phẩm</label>
+                    <input type="text" class="form-control" name="q" id="q" placeholder="Nhập tên sản phẩm (ví dụ: Cua Cà Mau)">
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="category" class="form-label">Danh mục</label>
+                    <select name="category" id="category" class="form-select">
+                        <option value="Tất cả" <%= currentCategory === 'Tất cả' ? 'selected' : '' %>>Tất cả</option>
+                        <% categories.forEach(cat => { %>
+                            <option value="<%= cat.name %>" <%= currentCategory === cat.name ? 'selected' : '' %>>
+                                <%= cat.name %>
+                            </option>
+                        <% }); %>
+                    </select>
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Lọc</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <h2 class="mb-4">Danh sách sản phẩm (<%= currentCategory %>)</h2>
+    <div class="row">
+        <% if (products.length > 0) { %>
+            <% products.forEach(product => { %>
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <img src="<%= product.image %>" class="card-img-top" alt="<%= product.name %>" style="height: 200px; object-fit: cover;">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title"><%= product.name %></h5>
+                            <p class="card-text text-muted small"><%= product.category.name %></p>
+                            
+                            <% if (product.variants && product.variants.length > 0) { %>
+                                <p class="card-text text-danger fs-5 fw-bold">
+                                    Từ <%= product.variants[0].price.toLocaleString('vi-VN') %> VNĐ
+                                </h5>
+                            <% } else { %>
+                                <p class="card-text text-muted">Chưa có giá</p>
+                            <% } %>
+                            
+                            <a href="/product/<%= product._id %>" class="btn btn-outline-primary mt-auto">Xem chi tiết & Đặt hàng</a>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        <% } else { %>
+            <p class="text-center text-muted">Không tìm thấy sản phẩm nào phù hợp.</p>
+        <% } %>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
